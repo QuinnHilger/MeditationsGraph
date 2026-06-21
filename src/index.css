@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Cinzel', Georgia, serif;
+  --font-serif-body: 'Cormorant Garamond', Georgia, serif;
+  
+  /* Color Palette - Roman Imperial Charcoal & Historical Gold Accent */
+  --bg-dark: #07090c;
+  --bg-card: rgba(11, 15, 22, 0.75);
+  --bg-card-hover: rgba(18, 24, 35, 0.85);
+  --border-glass: rgba(255, 255, 255, 0.06);
+  --border-glass-active: rgba(197, 160, 89, 0.4);
+  
+  --text-primary: #f3f4f6;
+  --text-muted: #a3aab6;
+  --text-dark: #5c6470;
+  
+  /* Refined Gold */
+  --accent-gold: #c5a059;
+  --accent-gold-glow: rgba(197, 160, 89, 0.15);
+  --accent-blue: #3b82f6;
+  --accent-red: #ef4444;
+  
+  --shadow-glow: 0 10px 40px 0 rgba(0, 0, 0, 0.5);
+  --shadow-gold: 0 0 25px rgba(197, 160, 89, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-glow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass:hover {
+  border-color: rgba(197, 160, 89, 0.15);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Scrollable container styling */
+.scrollable {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) rgba(0, 0, 0, 0.1);
+}
+
+/* Typography utilities */
+.serif-title {
+  font-family: var(--font-serif);
+  color: var(--accent-gold);
+  letter-spacing: 0.07em;
+  text-shadow: 0 0 15px rgba(197, 160, 89, 0.12);
+}
+
+.serif-text {
+  font-family: var(--font-serif-body);
+  line-height: 1.65;
+  font-size: 1.12rem;
+}
+
+/* Ornate Drop Cap for Classical Manuscript details */
+.manuscript-dropcap::first-letter {
+  font-family: var(--font-serif);
+  font-size: 3.2rem;
+  font-weight: 700;
+  float: left;
+  line-height: 0.8;
+  margin-top: 4px;
+  margin-right: 8px;
+  color: var(--accent-gold);
+  text-shadow: 0 0 15px rgba(197, 160, 89, 0.25);
+}
+
+/* Tooltip overlay styling for force-graph */
+.graph-tooltip {
+  background: rgba(10, 12, 16, 0.95) !important;
+  border: 1px solid var(--accent-gold) !important;
+  color: var(--text-primary) !important;
+  padding: 12px !important;
+  border-radius: 8px !important;
+  max-width: 300px !important;
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+  box-shadow: var(--shadow-gold) !important;
+  pointer-events: none !important;
+}
+
+/* Keyframes for ambient light glow background */
+@keyframes ambient-glow {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.ambient-light {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.04) 0%, rgba(0,0,0,0) 70%);
+  filter: blur(40px);
+  z-index: 0;
+  pointer-events: none;
+  animation: ambient-glow 15s infinite alternate ease-in-out;
+}
+
+.ambient-light-blue {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.03) 0%, rgba(0,0,0,0) 70%);
+  filter: blur(50px);
+  z-index: 0;
+  pointer-events: none;
+  animation: ambient-glow 20s infinite alternate-reverse ease-in-out;
+}
