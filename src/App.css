@@ -110,7 +110,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  overflow: hidden;
 }
 
 /* Collapse Buttons */
@@ -380,12 +379,11 @@
 
 /* Passage detail card styles */
 .detail-card {
-  height: 100%;
-  flex: 1;
+  height: auto;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow: hidden;
 }
 
 .detail-header {
@@ -421,12 +419,11 @@
 }
 
 .detail-body {
-  flex: 1;
-  overflow-y: auto;
+  flex: none;
+  height: auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-right: 6px;
 }
 
 .passage-content {

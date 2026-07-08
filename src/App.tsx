@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+import ForceGraph3D from 'react-force-graph-3d';
+import * as THREE from 'three';
 import { forceX, forceY } from 'd3-force';
 import { 
   Search, 
@@ -12,7 +14,8 @@ import {
   Activity, 
   Maximize2,
   Plus,
-  Minus
+  Minus,
+  Orbit
 } from 'lucide-react';
 import './App.css';
 
@@ -24,10 +27,15 @@ interface GraphNode {
   text: string;
   x?: number;
   y?: number;
+  z?: number;
   vx?: number;
   vy?: number;
+  vz?: number;
   index?: number;
   concepts?: string[];
+  isAnchor?: boolean;
+  theme?: string;
+  title?: string;
 }
 
 interface GraphLink {
@@ -37,6 +45,7 @@ interface GraphLink {
   weight: number;
   description: string;
   index?: number;
+  isAnchorLink?: boolean;
 }
 
 interface Takeaway {
@@ -66,6 +75,16 @@ const BOOK_COLORS: Record<number, string> = {
   10: '#14b8a6', // Mediterranean Cyan
   11: '#f43f5e', // Rose
   12: '#a855f7'  // Violet
+};
+
+// Colors for the 6 central Stoic themes (for Anchor Nodes)
+const THEME_COLORS: Record<string, string> = {
+  INNER_CITADEL: '#ef4444', // Gladiator Ruby
+  TRANSIENCE: '#3b82f6',    // Cobalt Blue
+  COSMOS: '#d4af37',        // Imperial Gold
+  SOCIAL_DUTY: '#10b981',   // Stoic Emerald
+  VIRTUE: '#8b5cf6',        // Tyrian Purple
+  FAME: '#f97316'           // Campfire Orange
 };
 
 const BOOK_NAMES: Record<number, string> = {
@@ -243,6 +262,7 @@ function App() {
   // Graph viewport size
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
+  const [graphMode, setGraphMode] = useState<'2d' | '3d'>('2d');
 
   const fgRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -305,9 +325,27 @@ function App() {
     
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
-  }, [leftPanelCollapsed, rightPanelCollapsed]);
+  }, [loading, leftPanelCollapsed, rightPanelCollapsed]);
 
 
+
+  // Focus camera on node (handles both 2D centering/zoom and 3D camera transitions)
+  const focusNode = (node: any, duration = 1000) => {
+    if (!fgRef.current || node.x === undefined || node.y === undefined) return;
+    if (graphMode === '2d') {
+      fgRef.current.centerAt(node.x, node.y, duration);
+      fgRef.current.zoom(2.5, duration);
+    } else {
+      // 3D camera zoom/focus: calculate offset camera coordinates pointing at node
+      const distance = 120;
+      const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z || 0);
+      fgRef.current.cameraPosition(
+        { x: node.x * distRatio, y: node.y * distRatio, z: (node.z || 0) * distRatio }, // position
+        node, // lookAt
+        duration // transition time
+      );
+    }
+  };
 
   // Handle zooming to node
   const handleNodeSelect = (node: GraphNode) => {
@@ -316,10 +354,7 @@ function App() {
     setRightPanelCollapsed(false); // Uncollapse sidebar when node is selected
     
     // Zoom/Center camera on node
-    if (fgRef.current && node.x !== undefined && node.y !== undefined) {
-      fgRef.current.centerAt(node.x, node.y, 1000);
-      fgRef.current.zoom(2.5, 1000);
-    }
+    focusNode(node, 1000);
   };
 
   // Helper: toggle book selection
@@ -409,17 +444,26 @@ function App() {
   // Configure D3 simulation forces to prevent overlap and increase node spacing
   useEffect(() => {
     if (fgRef.current && data) {
-      // Charge repulsion (makes nodes push away from each other)
-      fgRef.current.d3Force('charge').strength(-260);
-      // Link distance (makes connected nodes sit further apart)
-      fgRef.current.d3Force('link').distance(110);
-      // Add x and y forces to pull sparse outlying nodes closer to the center
-      fgRef.current.d3Force('x', forceX(dimensions.width / 2).strength(0.08));
-      fgRef.current.d3Force('y', forceY(dimensions.height / 2).strength(0.08));
-      // Reheat the simulation to let nodes settle into new layout
-      fgRef.current.d3ReheatSimulation();
+      if (graphMode === '2d') {
+        // Charge repulsion (makes nodes push away from each other)
+        fgRef.current.d3Force('charge').strength(-260);
+        // Link distance (makes connected nodes sit further apart)
+        fgRef.current.d3Force('link').distance(110);
+        // Add x and y forces to pull sparse outlying nodes closer to the center
+        fgRef.current.d3Force('x', forceX(dimensions.width / 2).strength(0.08));
+        fgRef.current.d3Force('y', forceY(dimensions.height / 2).strength(0.08));
+        // Reheat the simulation to let nodes settle into new layout
+        fgRef.current.d3ReheatSimulation();
+      } else {
+        // 3D physics repulsion settings
+        fgRef.current.d3Force('charge').strength(-180);
+        fgRef.current.d3Force('link').distance(90);
+        fgRef.current.d3ReheatSimulation();
+      }
     }
-  }, [data, filteredData, dimensions]);
+  }, [data, filteredData, dimensions, graphMode]);
+
+
 
   // Reset initial fit flag when filtered data changes to trigger refit on next layout stabilization
   useEffect(() => {
@@ -434,8 +478,7 @@ function App() {
         prevDimensions.current = { width: dimensions.width, height: dimensions.height };
         const timer = setTimeout(() => {
           if (selectedNode && selectedNode.x !== undefined && selectedNode.y !== undefined) {
-            fgRef.current.centerAt(selectedNode.x, selectedNode.y, 400);
-            fgRef.current.zoom(2.5, 400);
+            focusNode(selectedNode, 400);
           } else if (activeTakeaway) {
             fgRef.current.zoomToFit(400, 85, (n: any) => activeTakeaway.relatedNodeIds.includes(n.id));
           } else {
@@ -445,7 +488,19 @@ function App() {
         return () => clearTimeout(timer);
       }
     }
-  }, [dimensions, data, selectedNode, activeTakeaway]);
+  }, [dimensions, data, selectedNode, activeTakeaway, graphMode]);
+
+  // Trigger a camera fit when switching to 3D mode to ensure elements are properly scaled and visible
+  useEffect(() => {
+    if (graphMode === '3d' && fgRef.current) {
+      const timer = setTimeout(() => {
+        if (fgRef.current) {
+          fgRef.current.zoomToFit(800, 85);
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [graphMode]);
 
   const handleEngineStop = () => {
     if (!initialFitDone.current && fgRef.current) {
@@ -521,6 +576,13 @@ function App() {
     };
   }, [selectedNode, activeTakeaway, filteredData]);
 
+  // Refresh graph visuals in 3D mode when node selections or hover states change
+  useEffect(() => {
+    if (fgRef.current && graphMode === '3d') {
+      fgRef.current.refresh();
+    }
+  }, [selectedNode, hoveredNode, highlightedDetails.hasActiveHighlight, graphMode]);
+
   // Selected Node's Outgoing and Incoming links (to display in sidebar)
   const nodeConnections = useMemo(() => {
     if (!selectedNode || !data) return [];
@@ -556,10 +618,6 @@ function App() {
 
   // Custom Node Drawing on Canvas (Open Book Icons - Upgraded Sizes)
   const drawNode = (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const degree = nodeDegrees[node.id] || 0;
-    const baseRadius = 11.0;
-    const size = baseRadius + Math.sqrt(degree) * 1.35;
-    
     const isHighlighted = highlightedDetails.nodes.has(node.id);
     const isDimmed = highlightedDetails.hasActiveHighlight && !isHighlighted;
     const isSelected = selectedNode?.id === node.id;
@@ -572,7 +630,62 @@ function App() {
     if (isDimmed) alpha = 0.12;
     ctx.globalAlpha = alpha;
 
-    const nodeColor = BOOK_COLORS[node.book] || '#9ca3af';
+    const nodeColor = node.isAnchor 
+      ? (THEME_COLORS[node.theme] || '#d4af37')
+      : (BOOK_COLORS[node.book] || '#9ca3af');
+
+    if (node.isAnchor) {
+      const size = 30.0; // Theme anchors are drawn very large
+      
+      // 1. Draw Ring / Glow
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, size * 1.5, 0, 2 * Math.PI, false);
+      ctx.fillStyle = isSelected || isHovered ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}10`;
+      ctx.fill();
+      
+      ctx.strokeStyle = isSelected ? '#ffffff' : nodeColor;
+      ctx.lineWidth = isSelected || isHovered ? 3.0 / globalScale : 1.5 / globalScale;
+      ctx.stroke();
+
+      // 2. Draw Thematic Emblem (Double-border Circle)
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
+      ctx.fillStyle = 'var(--bg-card)';
+      ctx.fill();
+      ctx.stroke();
+
+      // Inner decorative ring
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, size * 0.75, 0, 2 * Math.PI, false);
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
+      ctx.lineWidth = 1.0 / globalScale;
+      ctx.stroke();
+
+      // 3. Render Large Theme Label inside Emblem
+      const label = node.title || node.id;
+      const fontSize = 7.0 / globalScale;
+      ctx.font = `bold ${fontSize}px var(--font-serif)`;
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      const words = label.split(' ');
+      if (words.length > 2) {
+        const line1 = words.slice(0, 2).join(' ');
+        const line2 = words.slice(2).join(' ');
+        ctx.fillText(line1, node.x, node.y - fontSize * 0.6);
+        ctx.fillText(line2, node.x, node.y + fontSize * 0.6);
+      } else {
+        ctx.fillText(label, node.x, node.y);
+      }
+      
+      ctx.restore();
+      return;
+    }
+
+    const degree = nodeDegrees[node.id] || 0;
+    const baseRadius = 11.0;
+    const size = baseRadius + Math.sqrt(degree) * 1.35;
 
     // 1. Draw Ring / Glow for highlighted or hovered nodes
     if (isSelected || isHovered) {
@@ -617,6 +730,138 @@ function App() {
     ctx.restore();
   };
 
+  // Render nodes as 3D canvas textures mapped to Three.js Sprites
+  const createNodeSprite = (node: any) => {
+    const canvas = document.createElement('canvas');
+    const scale = 2.0; 
+    
+    const nodeColor = node.isAnchor 
+      ? (THEME_COLORS[node.theme] || '#d4af37')
+      : (BOOK_COLORS[node.book] || '#9ca3af');
+      
+    const degree = nodeDegrees[node.id] || 0;
+    const baseRadius = 11.0;
+    const size = node.isAnchor ? 30.0 : (baseRadius + Math.sqrt(degree) * 1.35);
+    
+    const canvasSize = node.isAnchor ? 120 * scale : 60 * scale;
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.Object3D();
+    
+    ctx.scale(scale, scale);
+    const cx = canvasSize / (2 * scale);
+    const cy = canvasSize / (2 * scale);
+    
+    const isHighlighted = highlightedDetails.nodes.has(node.id);
+    const isDimmed = highlightedDetails.hasActiveHighlight && !isHighlighted;
+    const isSelected = selectedNode?.id === node.id;
+    const isHovered = hoveredNode?.id === node.id;
+    
+    ctx.save();
+    
+    let alpha = 1.0;
+    if (isDimmed) alpha = 0.15;
+    ctx.globalAlpha = alpha;
+    
+    if (node.isAnchor) {
+      // 1. Draw Ring / Glow
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 1.5, 0, 2 * Math.PI, false);
+      ctx.fillStyle = isSelected || isHovered ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}10`;
+      ctx.fill();
+      
+      ctx.strokeStyle = isSelected ? '#ffffff' : nodeColor;
+      ctx.lineWidth = isSelected || isHovered ? 3.0 : 1.5;
+      ctx.stroke();
+      
+      // 2. Draw Thematic Emblem
+      ctx.beginPath();
+      ctx.arc(cx, cy, size, 0, 2 * Math.PI, false);
+      ctx.fillStyle = '#0a0c10';
+      ctx.fill();
+      ctx.stroke();
+      
+      // Inner decorative ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.75, 0, 2 * Math.PI, false);
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
+      ctx.lineWidth = 1.0;
+      ctx.stroke();
+      
+      // 3. Render Large Theme Label
+      const label = node.title || node.id;
+      const fontSize = 8.0;
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      const words = label.split(' ');
+      if (words.length > 2) {
+        const line1 = words.slice(0, 2).join(' ');
+        const line2 = words.slice(2).join(' ');
+        ctx.fillText(line1, cx, cy - fontSize * 0.6);
+        ctx.fillText(line2, cx, cy + fontSize * 0.6);
+      } else {
+        ctx.fillText(label, cx, cy);
+      }
+    } else {
+      // Standard Node
+      if (isSelected || isHovered) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 1.8, 0, 2 * Math.PI, false);
+        ctx.fillStyle = isSelected ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}22`;
+        ctx.fill();
+        
+        if (isSelected) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+      
+      drawBookIcon(ctx, cx, cy, size, nodeColor, isHighlighted && !isDimmed);
+      
+      // Label
+      const label = `${node.book}.${node.chapter}`;
+      const fontSize = 9.0;
+      ctx.font = `${isSelected || isHovered ? 'bold' : 'normal'} ${fontSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
+      const textWidth = ctx.measureText(label).width;
+      ctx.fillRect(
+        cx - textWidth / 2 - 2, 
+        cy + size * 1.2 + 2, 
+        textWidth + 4, 
+        fontSize + 2
+      );
+      
+      ctx.fillStyle = isSelected || isHovered ? '#ffffff' : '#e5e7eb';
+      ctx.fillText(label, cx, cy + size * 1.2 + 2 + fontSize / 2);
+    }
+    
+    ctx.restore();
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    
+    const material = new THREE.SpriteMaterial({ 
+      map: texture, 
+      transparent: true,
+      depthWrite: false
+    });
+    
+    const sprite = new THREE.Sprite(material);
+    const worldScale = node.isAnchor ? 38 : 22;
+    sprite.scale.set(worldScale, worldScale, 1);
+    
+    return sprite;
+  };
+
   // Custom Link Drawing / Coloration
   const getLinkColor = (link: any) => {
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
@@ -632,6 +877,13 @@ function App() {
     const isDimmed = highlightedDetails.hasActiveHighlight && !isHighlighted;
     
     if (isDimmed) return 'rgba(255, 255, 255, 0.02)';
+    
+    // Custom style for Anchor gravity links
+    if (link.isAnchorLink) {
+      if (isHighlighted) return 'rgba(212, 175, 55, 0.25)'; // Faint gold when highlighted
+      return 'rgba(255, 255, 255, 0.015)'; // Faint grey gravity lines (almost invisible)
+    }
+
     if (isHighlighted) return 'rgba(212, 175, 55, 0.5)'; // Active Gold Link
     
     // Normal state - map opacity to similarity weight
@@ -640,6 +892,8 @@ function App() {
   };
 
   const getLinkWidth = (link: any) => {
+    if (link.isAnchorLink) return 0.5; // Thin gravity lines
+
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
     
@@ -649,6 +903,8 @@ function App() {
 
   // Particles flowing through links to give it a neural pathway look
   const getLinkParticles = (link: any) => {
+    if (link.isAnchorLink) return 0; // No particles on gravity links
+
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
     
@@ -887,46 +1143,99 @@ function App() {
         {/* CENTER INTERACTIVE GRAPH CONTAINER */}
         <div className="graph-container" ref={containerRef}>
           {data && (
-            <ForceGraph2D
-              ref={fgRef}
-              graphData={filteredData}
-              width={dimensions.width}
-              height={dimensions.height}
-              
-              // Custom rendering callbacks
-              nodeCanvasObject={drawNode}
-              
-              // Link styling callbacks
-              linkColor={getLinkColor}
-              linkWidth={getLinkWidth}
-              
-              // Directional Particles (flows along lines)
-              linkDirectionalParticles={getLinkParticles}
-              linkDirectionalParticleSpeed={0.005}
-              linkDirectionalParticleWidth={1.8}
-              linkDirectionalParticleColor={() => '#d4af37'}
-              
-              // Interaction bindings
-              onNodeClick={handleNodeSelect}
-              onNodeHover={setHoveredNode}
-              
-              onLinkClick={(link) => {
-                setSelectedLink(link);
-                setSelectedNode(null);
-                setRightPanelCollapsed(false); // Uncollapse sidebar when link is selected
-              }}
-              
-              onBackgroundClick={() => {
-                setSelectedNode(null);
-                setSelectedLink(null);
-                setActiveTakeaway(null);
-              }}
-              
-              // Physics settings
-              cooldownTicks={120}
-              d3VelocityDecay={0.3}
-              onEngineStop={handleEngineStop}
-            />
+            graphMode === '2d' ? (
+              <ForceGraph2D
+                ref={fgRef}
+                graphData={filteredData}
+                width={dimensions.width}
+                height={dimensions.height}
+                
+                // Custom rendering callbacks
+                nodeCanvasObject={drawNode}
+                
+                // Link styling callbacks
+                linkColor={getLinkColor}
+                linkWidth={getLinkWidth}
+                
+                // Directional Particles (flows along lines)
+                linkDirectionalParticles={getLinkParticles}
+                linkDirectionalParticleSpeed={0.005}
+                linkDirectionalParticleWidth={1.8}
+                linkDirectionalParticleColor={() => '#d4af37'}
+                
+                // Interaction bindings
+                onNodeClick={handleNodeSelect}
+                onNodeHover={setHoveredNode}
+                
+                onLinkClick={(link) => {
+                  setSelectedLink(link);
+                  setSelectedNode(null);
+                  setRightPanelCollapsed(false); // Uncollapse sidebar when link is selected
+                }}
+                
+                onBackgroundClick={() => {
+                  setSelectedNode(null);
+                  setSelectedLink(null);
+                  setActiveTakeaway(null);
+                }}
+                
+                // Physics settings
+                cooldownTicks={120}
+                d3VelocityDecay={0.3}
+                onEngineStop={handleEngineStop}
+              />
+            ) : (
+              <ForceGraph3D
+                ref={fgRef}
+                graphData={filteredData}
+                width={dimensions.width}
+                height={dimensions.height}
+                backgroundColor="#0a0c10"
+                
+                // Custom rendering (ThreeJS Sprite)
+                nodeThreeObject={createNodeSprite}
+                
+                // Link styling callbacks
+                linkColor={getLinkColor}
+                
+                // Directional Particles (flows along lines)
+                linkDirectionalParticles={getLinkParticles}
+                linkDirectionalParticleSpeed={0.005}
+                linkDirectionalParticleWidth={1.2}
+                linkDirectionalParticleColor={() => '#d4af37'}
+                
+                // Interaction bindings
+                onNodeClick={handleNodeSelect}
+                onNodeHover={(node, prevNode) => {
+                  setHoveredNode(node);
+                  // Scale up node object on hover in 3D space
+                  if (node && node.__threeObj) {
+                    const worldScale = node.isAnchor ? 38 : 22;
+                    node.__threeObj.scale.set(worldScale * 1.3, worldScale * 1.3, 1);
+                  }
+                  if (prevNode && prevNode.__threeObj) {
+                    const worldScale = prevNode.isAnchor ? 38 : 22;
+                    prevNode.__threeObj.scale.set(worldScale, worldScale, 1);
+                  }
+                }}
+                
+                onLinkClick={(link) => {
+                  setSelectedLink(link);
+                  setSelectedNode(null);
+                  setRightPanelCollapsed(false);
+                }}
+                
+                onBackgroundClick={() => {
+                  setSelectedNode(null);
+                  setSelectedLink(null);
+                  setActiveTakeaway(null);
+                }}
+                
+                // Physics settings
+                cooldownTicks={120}
+                onEngineStop={handleEngineStop}
+              />
+            )
           )}
 
           {/* Floating Zoom Controls Toolbar */}
@@ -943,14 +1252,38 @@ function App() {
           }}>
             <button 
               className="collapse-btn" 
-              onClick={() => fgRef.current && fgRef.current.zoom(fgRef.current.zoom() * 1.4, 300)} 
+              onClick={() => {
+                if (!fgRef.current) return;
+                if (graphMode === '2d') {
+                  fgRef.current.zoom(fgRef.current.zoom() * 1.4, 300);
+                } else {
+                  const cam = fgRef.current.cameraPosition();
+                  fgRef.current.cameraPosition(
+                    { x: cam.x * 0.75, y: cam.y * 0.75, z: cam.z * 0.75 },
+                    undefined,
+                    300
+                  );
+                }
+              }} 
               title="Zoom In"
             >
               <Plus size={16} />
             </button>
             <button 
               className="collapse-btn" 
-              onClick={() => fgRef.current && fgRef.current.zoom(fgRef.current.zoom() / 1.4, 300)} 
+              onClick={() => {
+                if (!fgRef.current) return;
+                if (graphMode === '2d') {
+                  fgRef.current.zoom(fgRef.current.zoom() / 1.4, 300);
+                } else {
+                  const cam = fgRef.current.cameraPosition();
+                  fgRef.current.cameraPosition(
+                    { x: cam.x * 1.35, y: cam.y * 1.35, z: cam.z * 1.35 },
+                    undefined,
+                    300
+                  );
+                }
+              }} 
               title="Zoom Out"
             >
               <Minus size={16} />
@@ -961,6 +1294,21 @@ function App() {
               title="Recenter & Fit"
             >
               <Maximize2 size={16} />
+            </button>
+            <button 
+              className={`collapse-btn ${graphMode === '3d' ? 'active-mode' : ''}`}
+              onClick={() => {
+                setGraphMode(prev => prev === '2d' ? '3d' : '2d');
+                initialFitDone.current = false;
+              }}
+              title={graphMode === '2d' ? "Switch to 3D Space View" : "Switch to 2D Flat View"}
+              style={{
+                background: graphMode === '3d' ? 'rgba(212, 175, 55, 0.25)' : 'transparent',
+                borderColor: graphMode === '3d' ? '#d4af37' : 'rgba(255, 255, 255, 0.15)',
+                color: graphMode === '3d' ? '#d4af37' : '#ffffff'
+              }}
+            >
+              <Orbit size={16} />
             </button>
           </div>
 
@@ -998,7 +1346,7 @@ function App() {
             <h2><BookOpen size={16} /> Details Panel</h2>
           </div>
           
-          <div className="sidebar-content">
+          <div className="sidebar-content scrollable">
             {/* Tour Navigation stepper rendered at the top of Details panel if active */}
             {tourModeActive && activeTakeaway && (
               <div className="tour-container">
@@ -1040,91 +1388,152 @@ function App() {
             )}
 
             {selectedNode ? (
-              <div className="detail-card">
-                <div className="detail-header">
-                  <div className="passage-meta">
-                    Book {selectedNode.book}, Passage {selectedNode.chapter}
-                  </div>
-                  <button 
-                    className="close-detail-btn"
-                    onClick={() => {
-                      setSelectedNode(null);
-                      if (tourModeActive) setTourModeActive(false);
-                    }}
-                    title="Close details"
-                  >
-                    &times;
-                  </button>
-                </div>
-                
-                <div className="detail-body">
-                  <div className="passage-content serif-text manuscript-dropcap">
-                    "{selectedNode.text}"
-                  </div>
-
-                  {selectedNode.concepts && selectedNode.concepts.length > 0 && (
-                    <div className="passage-concept-tags">
-                      {selectedNode.concepts.map(key => {
-                        const concept = STOIC_CONCEPTS[key];
-                        if (!concept) return null;
-                        return (
-                          <span 
-                            key={key} 
-                            className="concept-pill"
-                            style={{ 
-                              color: concept.color, 
-                              borderColor: `${concept.color}40`,
-                              background: `${concept.color}10` 
-                            }}
-                          >
-                            {concept.label}
-                          </span>
-                        );
-                      })}
+              selectedNode.isAnchor ? (
+                <div className="detail-card">
+                  <div className="detail-header" style={{ borderBottom: `2px solid ${THEME_COLORS[selectedNode.theme || ''] || 'var(--accent-gold)'}` }}>
+                    <div className="passage-meta" style={{ color: THEME_COLORS[selectedNode.theme || ''] || 'var(--accent-gold)', fontWeight: 'bold' }}>
+                      Stoic Theme Hub
                     </div>
-                  )}
-
-                  <div className="connections-section">
-                    <h3 className="connections-title">
-                      Thematic Connections ({nodeConnections.length})
+                    <button 
+                      className="close-detail-btn"
+                      onClick={() => {
+                        setSelectedNode(null);
+                        if (tourModeActive) setTourModeActive(false);
+                      }}
+                      title="Close details"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  
+                  <div className="detail-body">
+                    <h3 className="serif-title" style={{ fontSize: '1.4rem', color: '#ffffff', marginTop: 10, marginBottom: 10 }}>
+                      {selectedNode.title}
                     </h3>
-                    
-                    <div className="connections-list">
-                      {nodeConnections.length > 0 ? (
-                        nodeConnections.map((link, idx) => (
-                          <div 
-                            key={idx} 
-                            className="connection-item"
-                            onClick={() => {
-                              const neighbor = data?.nodes.find(n => n.id === link.neighborId);
-                              if (neighbor) handleNodeSelect(neighbor);
-                            }}
-                          >
-                            <div className="connection-item-header">
-                              <span className="connection-node-id">
-                                Passage {link.neighborId.replace('B', '').replace('_P', '.')}
-                              </span>
-                              <span className="connection-weight">
-                                Strength: {link.weight}/100
-                              </span>
+                    <div className="passage-content serif-text" style={{ fontSize: '0.9rem', lineHeight: 1.5, fontStyle: 'italic', marginBottom: 20 }}>
+                      "{selectedNode.text}"
+                    </div>
+
+                    <div className="connections-section">
+                      <h3 className="connections-title">
+                        Meditations in this Theme ({data?.nodes.filter((n: any) => n.theme === selectedNode.theme && !n.isAnchor).length || 0})
+                      </h3>
+                      
+                      <div className="connections-list" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                        {data?.nodes
+                          .filter((n: any) => n.theme === selectedNode.theme && !n.isAnchor)
+                          .map((n: any) => (
+                            <div 
+                              key={n.id} 
+                              className="connection-item"
+                              style={{ padding: '8px 12px', borderLeftColor: THEME_COLORS[selectedNode.theme || ''] }}
+                              onClick={() => handleNodeSelect(n)}
+                            >
+                              <div className="connection-item-header">
+                                <span className="connection-node-id" style={{ fontWeight: 'bold' }}>
+                                  Passage {n.id.replace('B', '').replace('_P', '.')}
+                                </span>
+                                <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>
+                                  Book {n.book}
+                                </span>
+                              </div>
+                              <p className="connection-description" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {n.text}
+                              </p>
                             </div>
-                            <span className="connection-label">
-                              {link.label}
-                            </span>
-                            <p className="connection-description">
-                              {link.description}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-dark)' }}>
-                          No semantic connections found at this threshold. Try lowering the "Min Connection Weight" slider.
-                        </p>
-                      )}
+                          ))
+                        }
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="detail-card">
+                  <div className="detail-header">
+                    <div className="passage-meta">
+                      Book {selectedNode.book}, Passage {selectedNode.chapter}
+                    </div>
+                    <button 
+                      className="close-detail-btn"
+                      onClick={() => {
+                        setSelectedNode(null);
+                        if (tourModeActive) setTourModeActive(false);
+                      }}
+                      title="Close details"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  
+                  <div className="detail-body">
+                    <div className="passage-content serif-text manuscript-dropcap">
+                      "{selectedNode.text}"
+                    </div>
+
+                    {selectedNode.concepts && selectedNode.concepts.length > 0 && (
+                      <div className="passage-concept-tags">
+                        {selectedNode.concepts.map(key => {
+                          const concept = STOIC_CONCEPTS[key];
+                          if (!concept) return null;
+                          return (
+                            <span 
+                              key={key} 
+                              className="concept-pill"
+                              style={{ 
+                                color: concept.color, 
+                                borderColor: `${concept.color}40`,
+                                background: `${concept.color}10` 
+                              }}
+                            >
+                              {concept.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="connections-section">
+                      <h3 className="connections-title">
+                        Thematic Connections ({nodeConnections.length})
+                      </h3>
+                      
+                      <div className="connections-list">
+                        {nodeConnections.length > 0 ? (
+                          nodeConnections.map((link, idx) => (
+                            <div 
+                              key={idx} 
+                              className="connection-item"
+                              onClick={() => {
+                                const neighbor = data?.nodes.find(n => n.id === link.neighborId);
+                                if (neighbor) handleNodeSelect(neighbor);
+                              }}
+                            >
+                              <div className="connection-item-header">
+                                <span className="connection-node-id">
+                                  Passage {link.neighborId.replace('B', '').replace('_P', '.')}
+                                </span>
+                                <span className="connection-weight">
+                                  Strength: {link.weight}/100
+                                </span>
+                              </div>
+                              <span className="connection-label">
+                                {link.label}
+                              </span>
+                              <p className="connection-description">
+                                {link.description}
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-dark)' }}>
+                            No semantic connections found at this threshold. Try lowering the "Min Connection Weight" slider.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
             ) : selectedLink ? (
               <div className="detail-card">
                 <div className="detail-header">

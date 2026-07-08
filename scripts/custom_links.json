@@ -1,0 +1,744 @@
+[
+  {
+    "source": "B12_P1",
+    "target": "B3_P7",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 96,
+    "description": "Marcus explains in Book 12 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B12_P24",
+    "target": "B12_P23",
+    "label": "Cites Platonic Dialogues",
+    "weight": 56,
+    "description": "This link connects historical annotations of Platonic Dialogues with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B3_P17",
+    "target": "B2_P11",
+    "label": "Opinion and Moral Virtue",
+    "weight": 94,
+    "description": "Marcus connects the control of opinions with the practice of virtue, arguing that stripping away false judgments is essential to maintaining justice and honesty."
+  },
+  {
+    "source": "B7_P39",
+    "target": "B3_P7",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 89,
+    "description": "Marcus explains in Book 7 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B9_P1",
+    "target": "B2_P14",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 85,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B12_P22",
+    "target": "B2_P15",
+    "label": "Cites Classical Tragedy",
+    "weight": 55,
+    "description": "This link connects historical annotations of Classical Tragedy with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B7_P39",
+    "target": "B12_P1",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 80,
+    "description": "Marcus explains in Book 7 how physical pain belongs to the body, whereas the mind in Book 12 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B10_P2",
+    "target": "B6_P53",
+    "label": "Philosophical Citation",
+    "weight": 55,
+    "description": "This link connects historical annotations of Classical Philosophy with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B12_P2",
+    "target": "B10_P1",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 78,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B8_P5",
+    "target": "B7_P15",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 78,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B9_P29",
+    "target": "B5_P27",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 78,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B11_P15",
+    "target": "B7_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 77,
+    "description": "Marcus explains in Book 11 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B3_P8",
+    "target": "B3_P17",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 76,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B2_P11",
+    "target": "B7_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 75,
+    "description": "Marcus explains in Book 2 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B2_P11",
+    "target": "B3_P8",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 74,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B12_P27",
+    "target": "B10_P36",
+    "label": "Cites Platonic Dialogues",
+    "weight": 54,
+    "description": "This link connects historical annotations of Platonic Dialogues with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B3_P4",
+    "target": "B7_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 72,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B4_P32",
+    "target": "B7_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 72,
+    "description": "Marcus explains in Book 4 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B5_P9",
+    "target": "B7_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 72,
+    "description": "Marcus explains in Book 5 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B8_P39",
+    "target": "B6_P45",
+    "label": "Part-Whole Cosmic Harmony",
+    "weight": 72,
+    "description": "Marcus describes the individual as an essential cell in the cosmic body, warning that discontent or unsocial action acts as a rebellion against universal nature."
+  },
+  {
+    "source": "B10_P33",
+    "target": "B8_P30",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 71,
+    "description": "Marcus explains in Book 10 how physical pain belongs to the body, whereas the mind in Book 8 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B10_P15",
+    "target": "B7_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 71,
+    "description": "Marcus explains in Book 10 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B3_P7",
+    "target": "B10_P33",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 71,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 10 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B10_P37",
+    "target": "B6_P48",
+    "label": "Stoic Ethical Fellowship",
+    "weight": 71,
+    "description": "These chapters reinforce Marcus's core Stoic principles, urging the reader to live in accordance with reason, truth, and the natural law of the universe."
+  },
+  {
+    "source": "B2_P11",
+    "target": "B2_P14",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 70,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B10_P1",
+    "target": "B11_P15",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 70,
+    "description": "Marcus explains in Book 10 how physical pain belongs to the body, whereas the mind in Book 11 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B12_P19",
+    "target": "B7_P31",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 70,
+    "description": "Marcus explains in Book 12 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B3_P7",
+    "target": "B10_P1",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 70,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 10 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B12_P7",
+    "target": "B2_P6",
+    "label": "Philosophical Citation",
+    "weight": 54,
+    "description": "This link connects historical annotations of Classical Philosophy with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B10_P33",
+    "target": "B12_P1",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 69,
+    "description": "Marcus explains in Book 10 how physical pain belongs to the body, whereas the mind in Book 12 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B11_P5",
+    "target": "B7_P25",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 69,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B10_P33",
+    "target": "B7_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 69,
+    "description": "Marcus explains in Book 10 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B6_P33",
+    "target": "B9_P29",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 69,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B12_P17",
+    "target": "B9_P19",
+    "label": "Philosophical Citation",
+    "weight": 54,
+    "description": "This link connects historical annotations of Classical Philosophy with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B5_P27",
+    "target": "B7_P25",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 68,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B9_P29",
+    "target": "B10_P1",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 68,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B7_P35",
+    "target": "B8_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 68,
+    "description": "Marcus explains in Book 7 how physical pain belongs to the body, whereas the mind in Book 8 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B5_P10",
+    "target": "B8_P30",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 68,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B2_P14",
+    "target": "B4_P32",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 68,
+    "description": "Marcus explains in Book 2 how physical pain belongs to the body, whereas the mind in Book 4 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B7_P20",
+    "target": "B3_P12",
+    "label": "Opinion and Moral Virtue",
+    "weight": 68,
+    "description": "Marcus connects the control of opinions with the practice of virtue, arguing that stripping away false judgments is essential to maintaining justice and honesty."
+  },
+  {
+    "source": "B8_P1",
+    "target": "B6_P27",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 67,
+    "description": "Marcus explains in Book 8 how physical pain belongs to the body, whereas the mind in Book 6 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B6_P18",
+    "target": "B4_P9",
+    "label": "Opinion and Moral Virtue",
+    "weight": 67,
+    "description": "Marcus connects the control of opinions with the practice of virtue, arguing that stripping away false judgments is essential to maintaining justice and honesty."
+  },
+  {
+    "source": "B7_P34",
+    "target": "B12_P1",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 67,
+    "description": "Marcus explains in Book 7 how physical pain belongs to the body, whereas the mind in Book 12 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B7_P7",
+    "target": "B4_P36",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 67,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B10_P23",
+    "target": "B4_P3",
+    "label": "Cites Platonic Dialogues",
+    "weight": 54,
+    "description": "This link connects historical annotations of Platonic Dialogues with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B8_P32",
+    "target": "B12_P2",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 67,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B2_P11",
+    "target": "B4_P32",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 67,
+    "description": "Marcus explains in Book 2 how physical pain belongs to the body, whereas the mind in Book 4 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B8_P19",
+    "target": "B5_P27",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 66,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B11_P12",
+    "target": "B6_P36",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 66,
+    "description": "Marcus explains in Book 11 how physical pain belongs to the body, whereas the mind in Book 6 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B3_P4",
+    "target": "B12_P1",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 66,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 12 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B8_P4",
+    "target": "B7_P19",
+    "label": "Part-Whole Cosmic Harmony",
+    "weight": 66,
+    "description": "Marcus describes the individual as an essential cell in the cosmic body, warning that discontent or unsocial action acts as a rebellion against universal nature."
+  },
+  {
+    "source": "B5_P27",
+    "target": "B10_P1",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 66,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B10_P4",
+    "target": "B9_P43",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 65,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B3_P7",
+    "target": "B2_P11",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 65,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 2 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B7_P34",
+    "target": "B3_P7",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 65,
+    "description": "Marcus explains in Book 7 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B2_P14",
+    "target": "B11_P15",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 65,
+    "description": "Marcus explains in Book 2 how physical pain belongs to the body, whereas the mind in Book 11 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B8_P33",
+    "target": "B9_P1",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 65,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B10_P15",
+    "target": "B2_P11",
+    "label": "Opinion and Moral Virtue",
+    "weight": 65,
+    "description": "Marcus connects the control of opinions with the practice of virtue, arguing that stripping away false judgments is essential to maintaining justice and honesty."
+  },
+  {
+    "source": "B8_P30",
+    "target": "B7_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 65,
+    "description": "Marcus explains in Book 8 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B8_P7",
+    "target": "B4_P30",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 64,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B12_P15",
+    "target": "B3_P4",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 64,
+    "description": "Marcus explains in Book 12 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B11_P12",
+    "target": "B12_P1",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 64,
+    "description": "Marcus explains in Book 11 how physical pain belongs to the body, whereas the mind in Book 12 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B9_P33",
+    "target": "B9_P17",
+    "label": "Part-Whole Cosmic Harmony",
+    "weight": 64,
+    "description": "Marcus describes the individual as an essential cell in the cosmic body, warning that discontent or unsocial action acts as a rebellion against universal nature."
+  },
+  {
+    "source": "B8_P34",
+    "target": "B7_P39",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 64,
+    "description": "Marcus explains in Book 8 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B12_P2",
+    "target": "B3_P7",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 63,
+    "description": "Marcus explains in Book 12 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B11_P17",
+    "target": "B3_P4",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 63,
+    "description": "Marcus explains in Book 11 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B3_P4",
+    "target": "B2_P11",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 63,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 2 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B6_P42",
+    "target": "B4_P39",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 63,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B9_P3",
+    "target": "B8_P19",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 63,
+    "description": "Marcus explains in Book 9 how physical pain belongs to the body, whereas the mind in Book 8 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B3_P10",
+    "target": "B11_P15",
+    "label": "Sovereignty of Judgment",
+    "weight": 63,
+    "description": "These passages emphasize the Stoic practice of controlling opinions, arguing that external events have no power over the soul unless we assent to a judgment of harm."
+  },
+  {
+    "source": "B3_P1",
+    "target": "B3_P10",
+    "label": "Sovereignty of Judgment",
+    "weight": 63,
+    "description": "These passages emphasize the Stoic practice of controlling opinions, arguing that external events have no power over the soul unless we assent to a judgment of harm."
+  },
+  {
+    "source": "B7_P26",
+    "target": "B2_P11",
+    "label": "Cites Platonic Dialogues",
+    "weight": 53,
+    "description": "This link connects historical annotations of Platonic Dialogues with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B5_P9",
+    "target": "B8_P7",
+    "label": "Vanity of Posthumous Fame",
+    "weight": 63,
+    "description": "Marcus contrasts the desire for worldly recognition with the transience of human memory, warning that both the praiser and the praised will soon fade into oblivion."
+  },
+  {
+    "source": "B12_P5",
+    "target": "B7_P32",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 62,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B7_P16",
+    "target": "B12_P2",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 62,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B8_P27",
+    "target": "B3_P7",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 62,
+    "description": "Marcus explains in Book 8 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B3_P13",
+    "target": "B3_P7",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 61,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B3_P1",
+    "target": "B3_P8",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 61,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B6_P45",
+    "target": "B8_P30",
+    "label": "Fellowship and Social Duty",
+    "weight": 61,
+    "description": "These passages highlight that human beings are made for mutual cooperation, requiring us to bear with others' errors patiently and act always for the common good."
+  },
+  {
+    "source": "B1_P17",
+    "target": "B1_P16",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 61,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B11_P15",
+    "target": "B3_P7",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 61,
+    "description": "Marcus explains in Book 11 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B10_P30",
+    "target": "B9_P43",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 61,
+    "description": "Marcus explains in Book 10 how physical pain belongs to the body, whereas the mind in Book 9 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B2_P2",
+    "target": "B3_P17",
+    "label": "Opinion and Moral Virtue",
+    "weight": 60,
+    "description": "Marcus connects the control of opinions with the practice of virtue, arguing that stripping away false judgments is essential to maintaining justice and honesty."
+  },
+  {
+    "source": "B11_P16",
+    "target": "B6_P36",
+    "label": "Cites Platonic Dialogues",
+    "weight": 53,
+    "description": "This link connects historical annotations of Platonic Dialogues with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B7_P34",
+    "target": "B10_P15",
+    "label": "Opinion and Moral Virtue",
+    "weight": 60,
+    "description": "Marcus connects the control of opinions with the practice of virtue, arguing that stripping away false judgments is essential to maintaining justice and honesty."
+  },
+  {
+    "source": "B12_P18",
+    "target": "B12_P2",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 60,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B10_P27",
+    "target": "B2_P2",
+    "label": "Opinion and Moral Virtue",
+    "weight": 60,
+    "description": "Marcus connects the control of opinions with the practice of virtue, arguing that stripping away false judgments is essential to maintaining justice and honesty."
+  },
+  {
+    "source": "B10_P29",
+    "target": "B8_P2",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 60,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B3_P1",
+    "target": "B7_P16",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 60,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B2_P14",
+    "target": "B8_P33",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 60,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B8_P4",
+    "target": "B12_P1",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 60,
+    "description": "Marcus explains in Book 8 how physical pain belongs to the body, whereas the mind in Book 12 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B10_P6",
+    "target": "B9_P38",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 60,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B8_P30",
+    "target": "B3_P7",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 60,
+    "description": "Marcus explains in Book 8 how physical pain belongs to the body, whereas the mind in Book 3 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B12_P6",
+    "target": "B7_P2",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 60,
+    "description": "Marcus explains in Book 12 how physical pain belongs to the body, whereas the mind in Book 7 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B1_P16",
+    "target": "B12_P2",
+    "label": "Reflections on Cosmic Transience",
+    "weight": 59,
+    "description": "Marcus reflects on the brevity of mortal life, urging the soul to view death as a natural resolution of elements and to focus entirely on the present moment."
+  },
+  {
+    "source": "B8_P14",
+    "target": "B6_P45",
+    "label": "Virtue as Sole Good",
+    "weight": 59,
+    "description": "Marcus stresses that moral goodness and active justice are the only source of true profit, rendering external things like wealth and pleasure completely indifferent."
+  },
+  {
+    "source": "B3_P10",
+    "target": "B12_P19",
+    "label": "Mind's Sovereignty Over Pain",
+    "weight": 59,
+    "description": "Marcus explains in Book 3 how physical pain belongs to the body, whereas the mind in Book 12 remains tranquil if it refuses to label bodily conditions as misfortunes."
+  },
+  {
+    "source": "B7_P26",
+    "target": "B12_P27",
+    "label": "Cites Platonic Dialogues",
+    "weight": 53,
+    "description": "This link connects historical annotations of Platonic Dialogues with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B8_P22",
+    "target": "B4_P8",
+    "label": "Aligning with Providence",
+    "weight": 59,
+    "description": "Marcus reminds himself to accept fate willingly as a necessary part of the rational cosmic design (Logos), trusting that whatever universal nature provides is beneficial."
+  },
+  {
+    "source": "B2_P12",
+    "target": "B3_P10",
+    "label": "Sovereignty of Judgment",
+    "weight": 59,
+    "description": "These passages emphasize the Stoic practice of controlling opinions, arguing that external events have no power over the soul unless we assent to a judgment of harm."
+  },
+  {
+    "source": "B10_P8",
+    "target": "B12_P1",
+    "label": "Cites Platonic Dialogues",
+    "weight": 53,
+    "description": "This link connects historical annotations of Platonic Dialogues with Marcus's reflections, illustrating the deep intellectual tradition that shaped his Stoic practice."
+  },
+  {
+    "source": "B8_P34",
+    "target": "B12_P1",
+    "label": "Rejoining the Cosmic Body",
+    "weight": 85,
+    "description": "Marcus explains that a human who separates himself from society can rejoin it by aligning with the divine providence that governs the whole."
+  },
+  {
+    "source": "B9_P29",
+    "target": "B12_P19",
+    "label": "Renouncing Fame Through Opinion",
+    "weight": 80,
+    "description": "Marcus looks down on human vanity, urging himself to cast away the desire for fame, which is just a false opinion of others."
+  },
+  {
+    "source": "B10_P31",
+    "target": "B2_P1",
+    "label": "Time Limits of Ancient Sages",
+    "weight": 80,
+    "description": "Marcus meditates on the short lives of ancient sages, warning himself that his own limit of time is quickly passing away."
+  },
+  {
+    "source": "B2_P1",
+    "target": "B12_P1",
+    "label": "Allaying Soul Distempers",
+    "weight": 75,
+    "description": "Marcus notes that the time to calm his soul is limited, urging himself to immediately submit to providence and live according to nature."
+  },
+  {
+    "source": "B9_P20",
+    "target": "B2_P6",
+    "label": "Examining Universal Mind",
+    "weight": 70,
+    "description": "Marcus instructs examining the universal mind to understand that he is a cooperative part of a rationally ordered whole."
+  }
+]

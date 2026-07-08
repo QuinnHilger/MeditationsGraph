@@ -91,6 +91,17 @@ themes = {
 def clean_text(text):
     return re.sub(r'[^\w\s]', '', text.lower())
 
+def classify_node(text):
+    clean = clean_text(text)
+    scores = {}
+    for theme_name, data in themes.items():
+        score = sum(clean.count(kw) for kw in data["keywords"])
+        scores[theme_name] = score
+    best_theme = max(scores, key=scores.get)
+    if scores[best_theme] == 0:
+        return "VIRTUE"
+    return best_theme
+
 def classify_pair(src_text, tgt_text):
     src_clean = clean_text(src_text)
     tgt_clean = clean_text(tgt_text)
@@ -112,6 +123,53 @@ def classify_pair(src_text, tgt_text):
             return "VIRTUE"
             
     return best_theme
+
+# Classify and label each passage node
+for node in raw_nodes:
+    node["theme"] = classify_node(node["text"])
+    node["isAnchor"] = False
+
+# Define Anchor themes metadata
+ANCHOR_THEMES = {
+    "INNER_CITADEL": {
+        "title": "The Inner Citadel",
+        "desc": "The rational mind as an invulnerable fortress. Marcus reminds himself that while external circumstances are beyond control, we maintain absolute sovereignty over our opinions, judgments, and character."
+    },
+    "TRANSIENCE": {
+        "title": "The Flow of Time",
+        "desc": "Life as a brief moment in the river of eternity. Marcus reflects on the constant flow of change, transience of fame, and the certainty of death to cultivate humility and presence."
+    },
+    "COSMOS": {
+        "title": "Cosmic Order & Logos",
+        "desc": "The universe as a single living organism governed by rational design (Logos). Marcus urges alignment and contentment with fate, recognizing each individual as a cooperative part of the whole."
+    },
+    "SOCIAL_DUTY": {
+        "title": "Social Duty & Fellowship",
+        "desc": "Humanity as cooperative limbs of a social body. Marcus emphasizes acting for the common good, bearing patiently with the faults of others, and offering gentle guidance."
+    },
+    "VIRTUE": {
+        "title": "Moral Virtue",
+        "desc": "Virtue as the sole true good. Marcus focuses on the practice of justice, temperance, wisdom, and courage as the only source of genuine benefit and peace of mind."
+    },
+    "FAME": {
+        "title": "The Vanity of Fame",
+        "desc": "The futility of seeking worldly recognition. Marcus warns that both those who praise and those who are praised will soon be forgotten, swallowed by the abyss of time."
+    }
+}
+
+anchor_nodes = []
+for theme_id, theme_info in ANCHOR_THEMES.items():
+    anchor_nodes.append({
+        "id": f"theme_{theme_id.lower()}",
+        "isAnchor": True,
+        "theme": theme_id,
+        "title": theme_info["title"],
+        "text": theme_info["desc"],
+        "book": 0,
+        "chapter": 0
+    })
+
+all_nodes = raw_nodes + anchor_nodes
 
 links = []
 discarded_count = 0
@@ -162,7 +220,22 @@ for cand in candidates:
         "description": desc
     })
 
-print(f"Generated {len(links)} links, discarded {discarded_count}")
+# Generate and append Gravity links to the Anchor Nodes
+anchor_links = []
+for node in raw_nodes:
+    theme_id = node["theme"]
+    anchor_links.append({
+        "source": node["id"],
+        "target": f"theme_{theme_id.lower()}",
+        "label": "Thematic Gravity",
+        "weight": 85,  # Strong weight to pull them together
+        "description": f"This passage belongs to the thematic domain of {ANCHOR_THEMES[theme_id]['title']}.",
+        "isAnchorLink": True
+    })
+
+all_links = links + anchor_links
+
+print(f"Generated {len(links)} links, injected {len(anchor_links)} gravity anchor links, discarded {discarded_count}")
 
 # Define takeaways
 takeaways = [
@@ -199,8 +272,8 @@ takeaways = [
 ]
 
 graph_data = {
-    "nodes": raw_nodes,
-    "links": links,
+    "nodes": all_nodes,
+    "links": all_links,
     "takeaways": takeaways
 }
 
