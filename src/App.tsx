@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, Component } from 'react';
+import type { ReactNode, ErrorInfo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
@@ -79,12 +80,11 @@ const BOOK_COLORS: Record<number, string> = {
 
 // Colors for the 6 central Stoic themes (for Anchor Nodes)
 const THEME_COLORS: Record<string, string> = {
-  INNER_CITADEL: '#ef4444', // Gladiator Ruby
-  TRANSIENCE: '#3b82f6',    // Cobalt Blue
-  COSMOS: '#d4af37',        // Imperial Gold
-  SOCIAL_DUTY: '#10b981',   // Stoic Emerald
-  VIRTUE: '#8b5cf6',        // Tyrian Purple
-  FAME: '#f97316'           // Campfire Orange
+  INNER_CITADEL: '#3b82f6', // Cobalt Blue (matches The Inner Citadel)
+  TRANSIENCE: '#f59e0b',    // Amber (matches Transience & Mortality)
+  COSMOS: '#8b5cf6',        // Tyrian Purple (matches Cosmic Order & Logos)
+  SOCIAL_DUTY: '#10b981',   // Stoic Emerald (matches Fellowship & Duty)
+  VIRTUE: '#ef4444'        // Gladiator Ruby (matches Virtue & Wisdom)
 };
 
 const BOOK_NAMES: Record<number, string> = {
@@ -247,7 +247,10 @@ function App() {
   // Filtering States
   const [selectedBooks, setSelectedBooks] = useState<number[]>(Array.from({ length: 12 }, (_, i) => i + 1));
   const [selectedConcept, setSelectedConcept] = useState<string | null>(null);
-  const [minWeight, setMinWeight] = useState<number>(30); // Default to filter out weak links
+  const [minWeight, setMinWeight] = useState<number>(75); // Default to filter out weak links
+  const [maxConnections, setMaxConnections] = useState<number>(0); // 0 = Unlimited/Disabled
+  const [mstEnabled, setMstEnabled] = useState<boolean>(true);
+  const [showThemeAnchors, setShowThemeAnchors] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   // Sidebar toggles
@@ -374,6 +377,23 @@ function App() {
     setSelectedBooks([]);
   };
 
+  // Helper: select or toggle theme concept filter, and align selected books dynamically
+  const selectConceptFilter = (conceptKey: string | null) => {
+    setSelectedConcept(conceptKey);
+    setActiveTakeaway(null);
+    setTourModeActive(false);
+    
+    if (conceptKey) {
+      const connectedBooks = data?.nodes
+        .filter(n => !n.isAnchor && n.concepts?.includes(conceptKey))
+        .map(n => n.book) || [];
+      const uniqueBooks = Array.from(new Set(connectedBooks)).sort((a, b) => a - b);
+      setSelectedBooks(uniqueBooks);
+    } else {
+      setSelectedBooks(Array.from({ length: 12 }, (_, i) => i + 1));
+    }
+  };
+
   // Calculate Node Degrees in full loaded dataset (to size nodes consistently)
   const nodeDegrees = useMemo(() => {
     if (!data) return {};
@@ -393,6 +413,9 @@ function App() {
 
     // 1. Filter Nodes based on Book Selection, Search Query, and Concept Filter
     const matchedNodes = data.nodes.filter(node => {
+      // Always include thematic anchor nodes (book: 0) if toggle is enabled
+      if (node.isAnchor) return showThemeAnchors;
+
       const isBookSelected = selectedBooks.includes(node.book);
       if (!isBookSelected) return false;
 
@@ -413,16 +436,13 @@ function App() {
 
     const matchedNodeIds = new Set(matchedNodes.map(n => n.id));
 
-    // 2. Filter Links
-    const matchedLinks = data.links.filter(link => {
+    // 2. Filter Candidate Links (must connect two visible nodes)
+    const candidateLinks = data.links.filter(link => {
       const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
       const targetId = typeof link.target === 'object' ? link.target.id : link.target;
 
       // Link must connect two visible nodes
       if (!matchedNodeIds.has(sourceId) || !matchedNodeIds.has(targetId)) return false;
-      
-      // Link must meet minimum weight
-      if (link.weight < minWeight) return false;
 
       // If a takeaway is active, only show connections inside that takeaway's node set
       if (activeTakeaway) {
@@ -432,35 +452,102 @@ function App() {
       return true;
     });
 
-    // Make sure we keep nodes that are in the link set, or nodes that match search.
-    // If a node is completely orphaned by the weight slider, it's still shown, but
-    // we can filter out nodes with no links if desired. Here we keep matched nodes.
+    let activeLinks: typeof candidateLinks;
+
+    // 3. Process topology constraints (MST or Min Weight + KNN)
+    if (mstEnabled) {
+      // Implement Kruskal's algorithm for Maximum Spanning Tree (MST)
+      const sortedCandidateLinks = [...candidateLinks].sort((a, b) => b.weight - a.weight);
+      
+      const parent: Record<string, string> = {};
+      const find = (id: string): string => {
+        if (parent[id] === undefined) {
+          parent[id] = id;
+        }
+        if (parent[id] === id) return id;
+        return parent[id] = find(parent[id]); // Path compression
+      };
+      
+      const union = (id1: string, id2: string): boolean => {
+        const r1 = find(id1);
+        const r2 = find(id2);
+        if (r1 !== r2) {
+          parent[r1] = r2;
+          return true;
+        }
+        return false;
+      };
+
+      const mst: typeof candidateLinks = [];
+      for (const link of sortedCandidateLinks) {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        if (union(sourceId, targetId)) {
+          mst.push(link);
+        }
+      }
+      activeLinks = mst;
+    } else {
+      // Filter base candidate links by minimum weight threshold
+      activeLinks = candidateLinks.filter(link => link.weight >= minWeight);
+
+      // Apply K-Nearest Neighbors (KNN) local connections limit if active
+      if (maxConnections > 0) {
+        const sortedActiveLinks = [...activeLinks].sort((a, b) => b.weight - a.weight);
+        const nodeLinkCount: Record<string, number> = {};
+        
+        activeLinks = sortedActiveLinks.filter(link => {
+          // Gravity links to anchors are always preserved to keep visual clusters cohesive
+          if (link.isAnchorLink) return true;
+
+          const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+          const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+          if ((nodeLinkCount[sourceId] || 0) < maxConnections && (nodeLinkCount[targetId] || 0) < maxConnections) {
+            nodeLinkCount[sourceId] = (nodeLinkCount[sourceId] || 0) + 1;
+            nodeLinkCount[targetId] = (nodeLinkCount[targetId] || 0) + 1;
+            return true;
+          }
+          return false;
+        });
+      }
+    }
+
     return {
       nodes: matchedNodes,
-      links: matchedLinks
+      links: activeLinks
     };
-  }, [data, selectedBooks, minWeight, searchQuery, activeTakeaway]);
+  }, [data, selectedBooks, selectedConcept, minWeight, maxConnections, mstEnabled, showThemeAnchors, searchQuery, activeTakeaway]);
 
   // Configure D3 simulation forces to prevent overlap and increase node spacing
   useEffect(() => {
-    if (fgRef.current && data) {
-      if (graphMode === '2d') {
-        // Charge repulsion (makes nodes push away from each other)
-        fgRef.current.d3Force('charge').strength(-260);
-        // Link distance (makes connected nodes sit further apart)
-        fgRef.current.d3Force('link').distance(110);
-        // Add x and y forces to pull sparse outlying nodes closer to the center
-        fgRef.current.d3Force('x', forceX(dimensions.width / 2).strength(0.08));
-        fgRef.current.d3Force('y', forceY(dimensions.height / 2).strength(0.08));
-        // Reheat the simulation to let nodes settle into new layout
-        fgRef.current.d3ReheatSimulation();
-      } else {
-        // 3D physics repulsion settings
-        fgRef.current.d3Force('charge').strength(-180);
-        fgRef.current.d3Force('link').distance(90);
-        fgRef.current.d3ReheatSimulation();
+    if (!fgRef.current || !data) return;
+
+    // Use a small timeout to ensure the D3 force layout is fully initialized by the library before we interact with it
+    const timer = setTimeout(() => {
+      if (!fgRef.current) return;
+      
+      try {
+        const chargeForce = fgRef.current.d3Force('charge');
+        const linkForce = fgRef.current.d3Force('link');
+        
+        if (graphMode === '2d') {
+          if (chargeForce) chargeForce.strength(-260);
+          if (linkForce) linkForce.distance(110);
+          fgRef.current.d3Force('x', forceX(dimensions.width / 2).strength(0.08));
+          fgRef.current.d3Force('y', forceY(dimensions.height / 2).strength(0.08));
+          fgRef.current.d3ReheatSimulation();
+        } else {
+          if (chargeForce) chargeForce.strength(-180);
+          if (linkForce) linkForce.distance(90);
+          fgRef.current.d3ReheatSimulation();
+        }
+      } catch (err) {
+        console.warn("Could not configure D3 forces yet (layout initialization pending):", err);
       }
-    }
+    }, 120);
+
+    return () => clearTimeout(timer);
   }, [data, filteredData, dimensions, graphMode]);
 
 
@@ -673,8 +760,8 @@ function App() {
       if (words.length > 2) {
         const line1 = words.slice(0, 2).join(' ');
         const line2 = words.slice(2).join(' ');
-        ctx.fillText(line1, node.x, node.y - fontSize * 0.6);
-        ctx.fillText(line2, node.x, node.y + fontSize * 0.6);
+        ctx.fillText(line1, node.x, node.y - fontSize * 0.75);
+        ctx.fillText(line2, node.x, node.y + fontSize * 0.75);
       } else {
         ctx.fillText(label, node.x, node.y);
       }
@@ -732,134 +819,145 @@ function App() {
 
   // Render nodes as 3D canvas textures mapped to Three.js Sprites
   const createNodeSprite = (node: any) => {
-    const canvas = document.createElement('canvas');
-    const scale = 2.0; 
-    
-    const nodeColor = node.isAnchor 
-      ? (THEME_COLORS[node.theme] || '#d4af37')
-      : (BOOK_COLORS[node.book] || '#9ca3af');
+    try {
+      const canvas = document.createElement('canvas');
+      const scale = 2.0; 
       
-    const degree = nodeDegrees[node.id] || 0;
-    const baseRadius = 11.0;
-    const size = node.isAnchor ? 30.0 : (baseRadius + Math.sqrt(degree) * 1.35);
-    
-    const canvasSize = node.isAnchor ? 120 * scale : 60 * scale;
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return new THREE.Object3D();
-    
-    ctx.scale(scale, scale);
-    const cx = canvasSize / (2 * scale);
-    const cy = canvasSize / (2 * scale);
-    
-    const isHighlighted = highlightedDetails.nodes.has(node.id);
-    const isDimmed = highlightedDetails.hasActiveHighlight && !isHighlighted;
-    const isSelected = selectedNode?.id === node.id;
-    const isHovered = hoveredNode?.id === node.id;
-    
-    ctx.save();
-    
-    let alpha = 1.0;
-    if (isDimmed) alpha = 0.15;
-    ctx.globalAlpha = alpha;
-    
-    if (node.isAnchor) {
-      // 1. Draw Ring / Glow
-      ctx.beginPath();
-      ctx.arc(cx, cy, size * 1.5, 0, 2 * Math.PI, false);
-      ctx.fillStyle = isSelected || isHovered ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}10`;
-      ctx.fill();
+      const nodeColor = node.isAnchor 
+        ? (THEME_COLORS[node.theme] || '#d4af37')
+        : (BOOK_COLORS[node.book] || '#9ca3af');
+        
+      const degree = nodeDegrees[node.id] || 0;
+      const baseRadius = 11.0;
+      const size = node.isAnchor ? 30.0 : (baseRadius + Math.sqrt(degree) * 1.35);
       
-      ctx.strokeStyle = isSelected ? '#ffffff' : nodeColor;
-      ctx.lineWidth = isSelected || isHovered ? 3.0 : 1.5;
-      ctx.stroke();
+      const canvasSize = node.isAnchor ? 120 * scale : 60 * scale;
+      canvas.width = canvasSize;
+      canvas.height = canvasSize;
       
-      // 2. Draw Thematic Emblem
-      ctx.beginPath();
-      ctx.arc(cx, cy, size, 0, 2 * Math.PI, false);
-      ctx.fillStyle = '#0a0c10';
-      ctx.fill();
-      ctx.stroke();
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return new THREE.Object3D();
       
-      // Inner decorative ring
-      ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.75, 0, 2 * Math.PI, false);
-      ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
-      ctx.lineWidth = 1.0;
-      ctx.stroke();
+      ctx.scale(scale, scale);
+      const cx = canvasSize / (2 * scale);
+      const cy = canvasSize / (2 * scale);
       
-      // 3. Render Large Theme Label
-      const label = node.title || node.id;
-      const fontSize = 8.0;
-      ctx.font = `bold ${fontSize}px sans-serif`;
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      const isHighlighted = highlightedDetails.nodes.has(node.id);
+      const isDimmed = highlightedDetails.hasActiveHighlight && !isHighlighted;
+      const isSelected = selectedNode?.id === node.id;
+      const isHovered = hoveredNode?.id === node.id;
       
-      const words = label.split(' ');
-      if (words.length > 2) {
-        const line1 = words.slice(0, 2).join(' ');
-        const line2 = words.slice(2).join(' ');
-        ctx.fillText(line1, cx, cy - fontSize * 0.6);
-        ctx.fillText(line2, cx, cy + fontSize * 0.6);
-      } else {
-        ctx.fillText(label, cx, cy);
-      }
-    } else {
-      // Standard Node
-      if (isSelected || isHovered) {
+      ctx.save();
+      
+      let alpha = 1.0;
+      if (isDimmed) alpha = 0.15;
+      ctx.globalAlpha = alpha;
+      
+      if (node.isAnchor) {
+        // 1. Draw Ring / Glow
         ctx.beginPath();
-        ctx.arc(cx, cy, size * 1.8, 0, 2 * Math.PI, false);
-        ctx.fillStyle = isSelected ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}22`;
+        ctx.arc(cx, cy, size * 1.5, 0, 2 * Math.PI, false);
+        ctx.fillStyle = isSelected || isHovered ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}10`;
         ctx.fill();
         
-        if (isSelected) {
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
+        ctx.strokeStyle = isSelected ? '#ffffff' : nodeColor;
+        ctx.lineWidth = isSelected || isHovered ? 3.0 : 1.5;
+        ctx.stroke();
+        
+        // 2. Draw Thematic Emblem
+        ctx.beginPath();
+        ctx.arc(cx, cy, size, 0, 2 * Math.PI, false);
+        ctx.fillStyle = '#0a0c10';
+        ctx.fill();
+        ctx.stroke();
+        
+        // Inner decorative ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 0.75, 0, 2 * Math.PI, false);
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
+        ctx.lineWidth = 1.0;
+        ctx.stroke();
+        
+        // 3. Render Large Theme Label
+        const label = node.title || node.id;
+        const fontSize = 8.0;
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const words = label.split(' ');
+        if (words.length > 2) {
+          const line1 = words.slice(0, 2).join(' ');
+          const line2 = words.slice(2).join(' ');
+          ctx.fillText(line1, cx, cy - fontSize * 0.75);
+          ctx.fillText(line2, cx, cy + fontSize * 0.75);
+        } else {
+          ctx.fillText(label, cx, cy);
         }
+      } else {
+        // Standard Node
+        if (isSelected || isHovered) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, size * 1.8, 0, 2 * Math.PI, false);
+          ctx.fillStyle = isSelected ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}22`;
+          ctx.fill();
+          
+          if (isSelected) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+        }
+        
+        drawBookIcon(ctx, cx, cy, size, nodeColor, isHighlighted && !isDimmed);
+        
+        // Label
+        const label = `${node.book}.${node.chapter}`;
+        const fontSize = 9.0;
+        ctx.font = `${isSelected || isHovered ? 'bold' : 'normal'} ${fontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
+        const textWidth = ctx.measureText(label).width;
+        ctx.fillRect(
+          cx - textWidth / 2 - 2, 
+          cy + size * 1.2 + 2, 
+          textWidth + 4, 
+          fontSize + 2
+        );
+        
+        ctx.fillStyle = isSelected || isHovered ? '#ffffff' : '#e5e7eb';
+        ctx.fillText(label, cx, cy + size * 1.2 + 2 + fontSize / 2);
       }
       
-      drawBookIcon(ctx, cx, cy, size, nodeColor, isHighlighted && !isDimmed);
+      ctx.restore();
       
-      // Label
-      const label = `${node.book}.${node.chapter}`;
-      const fontSize = 9.0;
-      ctx.font = `${isSelected || isHovered ? 'bold' : 'normal'} ${fontSize}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
       
-      ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
-      const textWidth = ctx.measureText(label).width;
-      ctx.fillRect(
-        cx - textWidth / 2 - 2, 
-        cy + size * 1.2 + 2, 
-        textWidth + 4, 
-        fontSize + 2
-      );
+      const material = new THREE.SpriteMaterial({ 
+        map: texture, 
+        transparent: true,
+        depthWrite: false
+      });
       
-      ctx.fillStyle = isSelected || isHovered ? '#ffffff' : '#e5e7eb';
-      ctx.fillText(label, cx, cy + size * 1.2 + 2 + fontSize / 2);
+      const sprite = new THREE.Sprite(material);
+      const worldScale = node.isAnchor ? 38 : 22;
+      sprite.scale.set(worldScale, worldScale, 1);
+      
+      return sprite;
+    } catch (err) {
+      console.error("Error creating node sprite for node:", node.id, err);
+      // Fallback to basic Mesh so the simulation continues running safely
+      const fallbackColor = node.isAnchor 
+        ? (THEME_COLORS[node.theme] || '#d4af37')
+        : (BOOK_COLORS[node.book] || '#9ca3af');
+      const geometry = new THREE.SphereGeometry(node.isAnchor ? 12 : 6, 8, 8);
+      const material = new THREE.MeshBasicMaterial({ color: fallbackColor });
+      return new THREE.Mesh(geometry, material);
     }
-    
-    ctx.restore();
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    
-    const material = new THREE.SpriteMaterial({ 
-      map: texture, 
-      transparent: true,
-      depthWrite: false
-    });
-    
-    const sprite = new THREE.Sprite(material);
-    const worldScale = node.isAnchor ? 38 : 22;
-    sprite.scale.set(worldScale, worldScale, 1);
-    
-    return sprite;
   };
 
   // Custom Link Drawing / Coloration
@@ -880,8 +978,17 @@ function App() {
     
     // Custom style for Anchor gravity links
     if (link.isAnchorLink) {
-      if (isHighlighted) return 'rgba(212, 175, 55, 0.25)'; // Faint gold when highlighted
-      return 'rgba(255, 255, 255, 0.015)'; // Faint grey gravity lines (almost invisible)
+      let themeId = null;
+      if (targetId && targetId.startsWith('theme_')) {
+        themeId = targetId.replace('theme_', '').toUpperCase();
+      } else if (sourceId && sourceId.startsWith('theme_')) {
+        themeId = sourceId.replace('theme_', '').toUpperCase();
+      }
+      
+      const themeColor = (themeId && THEME_COLORS[themeId]) ? THEME_COLORS[themeId] : '#d4af37';
+      
+      if (isHighlighted) return `${themeColor}cc`; // Opaque theme color when highlighted
+      return `${themeColor}26`; // Faint theme color (15% opacity, visible on dark backgrounds)
     }
 
     if (isHighlighted) return 'rgba(212, 175, 55, 0.5)'; // Active Gold Link
@@ -892,12 +999,15 @@ function App() {
   };
 
   const getLinkWidth = (link: any) => {
-    if (link.isAnchorLink) return 0.5; // Thin gravity lines
-
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
     
     const isHighlighted = highlightedDetails.links.has(`${sourceId}-${targetId}`) || highlightedDetails.links.has(`${targetId}-${sourceId}`);
+
+    if (link.isAnchorLink) {
+      return isHighlighted ? 2.5 : 0.8; // Thin but visible gravity lines (0.8px), thicker when active
+    }
+
     return isHighlighted ? 4.0 : Math.max(1.0, (link.weight / 100) * 3.5);
   };
 
@@ -987,7 +1097,7 @@ function App() {
 
         {/* LEFT SIDEBAR: FILTERS & TAKEAWAYS */}
         <aside className={`sidebar glass ${leftPanelCollapsed ? 'collapsed' : ''}`}>
-          <div className="sidebar-header">
+          <div className="sidebar-header left-header">
             <h2><Sliders size={16} /> Filters & Thematic Stories</h2>
           </div>
           
@@ -1045,7 +1155,7 @@ function App() {
               <div className="filter-section-title">
                 <span>Stoic Themes</span>
                 {selectedConcept && (
-                  <button onClick={() => setSelectedConcept(null)}>Clear Theme</button>
+                  <button onClick={() => selectConceptFilter(null)}>Clear Theme</button>
                 )}
               </div>
               <div className="theme-tag-container">
@@ -1060,11 +1170,7 @@ function App() {
                         borderColor: selectedConcept === key ? concept.color : 'var(--border-glass)',
                         background: selectedConcept === key ? `${concept.color}15` : 'rgba(0,0,0,0.2)'
                       }}
-                      onClick={() => {
-                        setSelectedConcept(prev => prev === key ? null : key);
-                        setActiveTakeaway(null); // Clear active story on theme selection
-                        setTourModeActive(false);
-                      }}
+                      onClick={() => selectConceptFilter(selectedConcept === key ? null : key)}
                     >
                       <div style={{ display: 'flex', alignItems: 'center' }}>
                         <span className="theme-bullet" style={{ backgroundColor: concept.color }}></span>
@@ -1077,23 +1183,93 @@ function App() {
               </div>
             </div>
 
-            {/* Cosine Similarity Slider */}
-            <div className="slider-container">
-              <div className="slider-header">
-                <span>Min Connection Weight</span>
-                <span className="serif-title" style={{ fontSize: '0.8rem' }}>{minWeight}</span>
+            {/* Topology Controls */}
+            <div className="slider-container" style={{ marginTop: 15 }}>
+              <div className="filter-section-title" style={{ marginBottom: 8, fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                <span>Graph Topology</span>
               </div>
-              <input 
-                type="range" 
-                className="weight-slider"
-                min="10" 
-                max="90" 
-                value={minWeight}
-                onChange={e => setMinWeight(parseInt(e.target.value))}
-              />
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-dark)', marginTop: -4 }}>
-                Filter out weaker semantic bonds to untangle graph complexity.
-              </span>
+              
+              {/* MST Backbone Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-main)', width: '100%' }}>
+                  <input 
+                    type="checkbox"
+                    checked={mstEnabled}
+                    onChange={e => setMstEnabled(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 'bold' }}>MST Spanning Backbone</span>
+                </label>
+              </div>
+
+              {/* Show Theme Anchors Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-main)', width: '100%' }}>
+                  <input 
+                    type="checkbox"
+                    checked={showThemeAnchors}
+                    onChange={e => setShowThemeAnchors(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span>Show Theme Anchors</span>
+                </label>
+              </div>
+
+              {/* Cosine Similarity Slider */}
+              <div 
+                style={{ opacity: mstEnabled ? 0.45 : 1.0, transition: 'opacity 0.2s', marginBottom: 16 }}
+                title={mstEnabled ? "This setting is locked while MST Spanning Backbone is active. Click the MST toggle above to unlock." : undefined}
+              >
+                <div className="slider-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Min Connection Weight</span>
+                  <span className="serif-title" style={{ fontSize: '0.8rem' }}>
+                    {minWeight} {mstEnabled && <span style={{ color: 'var(--accent-gold)', fontSize: '0.65rem', fontWeight: 'normal', marginLeft: 4 }}>🔒 Locked</span>}
+                  </span>
+                </div>
+                <input 
+                  type="range" 
+                  className="weight-slider"
+                  min="10" 
+                  max="90" 
+                  value={minWeight}
+                  disabled={mstEnabled}
+                  onChange={e => setMinWeight(parseInt(e.target.value))}
+                />
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-dark)', marginTop: -4, display: 'block' }}>
+                  {mstEnabled 
+                    ? "Locked in MST mode to maintain full connectivity." 
+                    : "Filter out weaker semantic bonds to untangle graph complexity."
+                  }
+                </span>
+              </div>
+
+              {/* KNN Connections Slider */}
+              <div 
+                style={{ opacity: mstEnabled ? 0.45 : 1.0, transition: 'opacity 0.2s' }}
+                title={mstEnabled ? "This setting is locked while MST Spanning Backbone is active. Click the MST toggle above to unlock." : undefined}
+              >
+                <div className="slider-header" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Max Connections per Node</span>
+                  <span className="serif-title" style={{ fontSize: '0.8rem' }}>
+                    {maxConnections === 0 ? 'Unlimited' : maxConnections} {mstEnabled && <span style={{ color: 'var(--accent-gold)', fontSize: '0.65rem', fontWeight: 'normal', marginLeft: 4 }}>🔒 Locked</span>}
+                  </span>
+                </div>
+                <input 
+                  type="range" 
+                  className="weight-slider"
+                  min="0" 
+                  max="6" 
+                  value={maxConnections}
+                  disabled={mstEnabled}
+                  onChange={e => setMaxConnections(parseInt(e.target.value))}
+                />
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-dark)', marginTop: -4, display: 'block' }}>
+                  {mstEnabled 
+                    ? "Locked in MST mode to maintain spanning tree connectivity." 
+                    : "Limit links per passage to prevent dense hairballs."
+                  }
+                </span>
+              </div>
             </div>
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--border-glass)' }} />
@@ -1185,56 +1361,58 @@ function App() {
                 onEngineStop={handleEngineStop}
               />
             ) : (
-              <ForceGraph3D
-                ref={fgRef}
-                graphData={filteredData}
-                width={dimensions.width}
-                height={dimensions.height}
-                backgroundColor="#0a0c10"
-                
-                // Custom rendering (ThreeJS Sprite)
-                nodeThreeObject={createNodeSprite}
-                
-                // Link styling callbacks
-                linkColor={getLinkColor}
-                
-                // Directional Particles (flows along lines)
-                linkDirectionalParticles={getLinkParticles}
-                linkDirectionalParticleSpeed={0.005}
-                linkDirectionalParticleWidth={1.2}
-                linkDirectionalParticleColor={() => '#d4af37'}
-                
-                // Interaction bindings
-                onNodeClick={handleNodeSelect}
-                onNodeHover={(node, prevNode) => {
-                  setHoveredNode(node);
-                  // Scale up node object on hover in 3D space
-                  if (node && node.__threeObj) {
-                    const worldScale = node.isAnchor ? 38 : 22;
-                    node.__threeObj.scale.set(worldScale * 1.3, worldScale * 1.3, 1);
-                  }
-                  if (prevNode && prevNode.__threeObj) {
-                    const worldScale = prevNode.isAnchor ? 38 : 22;
-                    prevNode.__threeObj.scale.set(worldScale, worldScale, 1);
-                  }
-                }}
-                
-                onLinkClick={(link) => {
-                  setSelectedLink(link);
-                  setSelectedNode(null);
-                  setRightPanelCollapsed(false);
-                }}
-                
-                onBackgroundClick={() => {
-                  setSelectedNode(null);
-                  setSelectedLink(null);
-                  setActiveTakeaway(null);
-                }}
-                
-                // Physics settings
-                cooldownTicks={120}
-                onEngineStop={handleEngineStop}
-              />
+              <ErrorBoundary>
+                <ForceGraph3D
+                  ref={fgRef}
+                  graphData={filteredData}
+                  width={dimensions.width}
+                  height={dimensions.height}
+                  backgroundColor="#0a0c10"
+                  
+                  // Custom rendering (ThreeJS Sprite)
+                  nodeThreeObject={createNodeSprite}
+                  
+                  // Link styling callbacks
+                  linkColor={getLinkColor}
+                  
+                  // Directional Particles (flows along lines)
+                  linkDirectionalParticles={getLinkParticles}
+                  linkDirectionalParticleSpeed={0.005}
+                  linkDirectionalParticleWidth={1.2}
+                  linkDirectionalParticleColor={() => '#d4af37'}
+                  
+                  // Interaction bindings
+                  onNodeClick={handleNodeSelect}
+                  onNodeHover={(node, prevNode) => {
+                    setHoveredNode(node);
+                    // Scale up node object on hover in 3D space
+                    if (node && node.__threeObj) {
+                      const worldScale = node.isAnchor ? 38 : 22;
+                      node.__threeObj.scale.set(worldScale * 1.3, worldScale * 1.3, 1);
+                    }
+                    if (prevNode && prevNode.__threeObj) {
+                      const worldScale = prevNode.isAnchor ? 38 : 22;
+                      prevNode.__threeObj.scale.set(worldScale, worldScale, 1);
+                    }
+                  }}
+                  
+                  onLinkClick={(link) => {
+                    setSelectedLink(link);
+                    setSelectedNode(null);
+                    setRightPanelCollapsed(false);
+                  }}
+                  
+                  onBackgroundClick={() => {
+                    setSelectedNode(null);
+                    setSelectedLink(null);
+                    setActiveTakeaway(null);
+                  }}
+                  
+                  // Physics settings
+                  cooldownTicks={120}
+                  onEngineStop={handleEngineStop}
+                />
+              </ErrorBoundary>
             )
           )}
 
@@ -1342,7 +1520,7 @@ function App() {
 
         {/* RIGHT SIDEBAR: PASSAGE / EDGE DETAILS */}
         <aside className={`sidebar glass ${rightPanelCollapsed ? 'collapsed' : ''}`}>
-          <div className="sidebar-header">
+          <div className="sidebar-header right-header">
             <h2><BookOpen size={16} /> Details Panel</h2>
           </div>
           
@@ -1763,6 +1941,53 @@ function App() {
       )}
     </div>
   );
+}
+
+// Error Boundary to catch silent WebGL/ThreeJS rendering crashes and print/show detailed errors
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("ErrorBoundary caught an error in ForceGraph3D:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          padding: '24px 32px',
+          background: 'rgba(239, 68, 68, 0.12)',
+          border: '1px solid rgba(239, 68, 68, 0.4)',
+          borderRadius: '12px',
+          color: '#fca5a5',
+          fontFamily: 'monospace',
+          fontSize: '0.9rem',
+          maxWidth: '80%',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 10
+        }}>
+          <h3 style={{ margin: '0 0 10px 0', color: '#f87171', fontWeight: 'bold' }}>3D Graphics Rendering Failed</h3>
+          <p style={{ margin: '0 0 16px 0', lineHeight: 1.4 }}>{this.state.error?.toString()}</p>
+          <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.8rem' }}>
+            This usually indicates a WebGL context issue or a Three.js compatibility conflict in the browser. 2D Mode is unaffected.
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default App;

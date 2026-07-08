@@ -64,17 +64,6 @@ themes = {
         ],
         "desc_template": "Marcus emphasizes that humans are made for cooperation in Book {src_book}, which connects to his advice in Book {tgt_book} to bear with others patiently and work for the community."
     },
-    "FAME": {
-        "keywords": ["fame", "glory", "praise", "honour", "commend", "applause", "posterity", "reputation", "name", "remembered", "memory", "vainglory", "oblivion", "noise", "rumour"],
-        "labels": [
-            "Exposes vanity of praise",
-            "Disregards posthumous fame",
-            "Contrasts fame with virtue",
-            "Recognizes limit of memory",
-            "Devalues worldly recognition"
-        ],
-        "desc_template": "In Book {src_book}, Marcus exposes the vanity of seeking praise or fame, connecting it to his reminder in Book {tgt_book} that both the praiser and praised will soon be forgotten."
-    },
     "VIRTUE": {
         "keywords": ["virtue", "righteousness", "truth", "temperance", "fortitude", "justice", "goodness", "just", "temperate", "courageous", "honest", "integrity", "probity", "moral"],
         "labels": [
@@ -150,10 +139,6 @@ ANCHOR_THEMES = {
     "VIRTUE": {
         "title": "Moral Virtue",
         "desc": "Virtue as the sole true good. Marcus focuses on the practice of justice, temperance, wisdom, and courage as the only source of genuine benefit and peace of mind."
-    },
-    "FAME": {
-        "title": "The Vanity of Fame",
-        "desc": "The futility of seeking worldly recognition. Marcus warns that both those who praise and those who are praised will soon be forgotten, swallowed by the abyss of time."
     }
 }
 

@@ -96,6 +96,14 @@
   background: rgba(0, 0, 0, 0.1);
 }
 
+.sidebar-header.left-header {
+  padding-left: 64px;
+}
+
+.sidebar-header.right-header {
+  padding-right: 64px;
+}
+
 .sidebar-header h2 {
   font-size: 1.1rem;
   margin: 0;
