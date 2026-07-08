@@ -1,237 +1,24 @@
-import { useState, useEffect, useRef, useMemo, Component } from 'react';
-import type { ReactNode, ErrorInfo } from 'react';
-import ForceGraph2D from 'react-force-graph-2d';
-import ForceGraph3D from 'react-force-graph-3d';
-import * as THREE from 'three';
-import { forceX, forceY } from 'd3-force';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
-  Search, 
-  Sliders, 
   ChevronLeft, 
   ChevronRight, 
   BookOpen, 
-  Sparkles, 
   Info, 
   Activity, 
-  Maximize2,
-  Plus,
-  Minus,
-  Orbit
+  Maximize2 
 } from 'lucide-react';
+import { STOIC_CONCEPTS } from './constants/stoic';
+import type { GraphNode, GraphLink, Takeaway, GraphData } from './types/graph';
+import { 
+  filterGraphData, 
+  getNodeConnections, 
+  calculateNodeDegrees 
+} from './features/graph/utils/graphHelpers';
+import SidebarLeft from './features/sidebar/components/SidebarLeft';
+import SidebarRight from './features/sidebar/components/SidebarRight';
+import ForceGraphWrapper from './features/graph/components/ForceGraphWrapper';
+import GraphToolbar from './features/graph/components/GraphToolbar';
 import './App.css';
-
-// Type definitions
-interface GraphNode {
-  id: string;
-  book: number;
-  chapter: number;
-  text: string;
-  x?: number;
-  y?: number;
-  z?: number;
-  vx?: number;
-  vy?: number;
-  vz?: number;
-  index?: number;
-  concepts?: string[];
-  isAnchor?: boolean;
-  theme?: string;
-  title?: string;
-}
-
-interface GraphLink {
-  source: string | GraphNode;
-  target: string | GraphNode;
-  label: string;
-  weight: number;
-  description: string;
-  index?: number;
-  isAnchorLink?: boolean;
-}
-
-interface Takeaway {
-  id: string;
-  title: string;
-  story: string;
-  relatedNodeIds: string[];
-}
-
-interface GraphData {
-  nodes: GraphNode[];
-  links: GraphLink[];
-  takeaways: Takeaway[];
-}
-
-// Color scheme for Books 1 to 12
-const BOOK_COLORS: Record<number, string> = {
-  1: '#d4af37', // Imperial Gold
-  2: '#10b981', // Stoic Emerald
-  3: '#3b82f6', // Cobalt Blue
-  4: '#f59e0b', // Autumn Amber
-  5: '#ef4444', // Gladiator Ruby
-  6: '#8b5cf6', // Tyrian Purple
-  7: '#06b6d4', // Aegean Teal
-  8: '#f97316', // Campfire Orange
-  9: '#ec4899', // Blossom Pink
-  10: '#14b8a6', // Mediterranean Cyan
-  11: '#f43f5e', // Rose
-  12: '#a855f7'  // Violet
-};
-
-// Colors for the 6 central Stoic themes (for Anchor Nodes)
-const THEME_COLORS: Record<string, string> = {
-  INNER_CITADEL: '#3b82f6', // Cobalt Blue (matches The Inner Citadel)
-  TRANSIENCE: '#f59e0b',    // Amber (matches Transience & Mortality)
-  COSMOS: '#8b5cf6',        // Tyrian Purple (matches Cosmic Order & Logos)
-  SOCIAL_DUTY: '#10b981',   // Stoic Emerald (matches Fellowship & Duty)
-  VIRTUE: '#ef4444'        // Gladiator Ruby (matches Virtue & Wisdom)
-};
-
-const BOOK_NAMES: Record<number, string> = {
-  1: "Book I (Ancestors)",
-  2: "Book II (On the Quadi)",
-  3: "Book III (Carnuntum)",
-  4: "Book IV (Self-Retreat)",
-  5: "Book V (Duty)",
-  6: "Book VI (The Whole)",
-  7: "Book VII (Providence)",
-  8: "Book VIII (Virtue)",
-  9: "Book IX ( Logos)",
-  10: "Book X (Nature)",
-  11: "Book XI (Fellowship)",
-  12: "Book XII (Eternity)"
-};
-
-const STOIC_CONCEPTS: Record<string, { label: string; keywords: string[]; color: string }> = {
-  inner_citadel: {
-    label: "The Inner Citadel",
-    color: "#3b82f6", // Blue
-    keywords: [
-      "citadel", "fortress", "ruling center", "governing part", "mind", "soul", 
-      "daemon", "inner self", "ruling power", "rational soul", "judgment", "opinion",
-      "assent", "retreat within", "sanctuary", "freedom", "free"
-    ]
-  },
-  transience_of_life: {
-    label: "Transience & Mortality",
-    color: "#f59e0b", // Amber
-    keywords: [
-      "transience", "fleeting", "smoke", "bubble", "river", "transitoriness", "eternity", "time", "death", 
-      "die", "mortal", "decay", "ashes", "oblivion", "brief", "moment", "temporary",
-      "span", "vapor", "swift", "flow", "transitory", "vanished"
-    ]
-  },
-  cosmic_order: {
-    label: "Cosmic Order & Logos",
-    color: "#8b5cf6", // Purple
-    keywords: [
-      "logos", "nature", "cosmos", "providence", "universe", "whole", "destiny", 
-      "fate", "ordained", "all-governing", "rational design", "world-soul", "coherence",
-      "harmony", "general law"
-    ]
-  },
-  social_duty: {
-    label: "Fellowship & Duty",
-    color: "#10b981", // Emerald Green
-    keywords: [
-      "fellowship", "brotherhood", "social", "citizen", "cooperation", "help", "common good",
-      "kindness", "benevolence", "community", "jointly", "neighbor", "forbear", "patiently",
-      "instruction", "fellow-workers", "society", "mankind"
-    ]
-  },
-  virtue_and_vice: {
-    label: "Virtue & Wisdom",
-    color: "#ef4444", // Crimson Red
-    keywords: [
-      "virtue", "vice", "good", "evil", "justice", "temperance", "fortitude", "wisdom",
-      "integrity", "moral", "shamefastness", "truth", "righteousness", "duty", "honest"
-    ]
-  }
-};
-
-// Helper function to draw rounded rectangles on older browsers compatibly
-const drawRoundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
-  if (ctx.roundRect) {
-    ctx.roundRect(x, y, w, h, r);
-  } else {
-    if (w < 2 * r) r = w / 2;
-    if (h < 2 * r) r = h / 2;
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-};
-
-// Helper function to draw a beautiful open book icon
-const drawBookIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string, isHighlighted: boolean) => {
-  const w = size * 2.2;
-  const h = size * 1.5;
-  const pad = Math.max(1.8, size * 0.12);
-  
-  if (isHighlighted) {
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 12;
-  }
-  
-  // 1. Draw Cover (outer outline)
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  drawRoundRect(ctx, x - w/2 - pad, y - h/2 - pad, w/2, h + pad*2, 2.5);
-  drawRoundRect(ctx, x + pad, y - h/2 - pad, w/2, h + pad*2, 2.5);
-  ctx.fill();
-  
-  ctx.shadowBlur = 0;
-  
-  // 2. Draw Paper Pages (base white/cream)
-  ctx.fillStyle = '#fefefe';
-  ctx.beginPath();
-  drawRoundRect(ctx, x - w/2, y - h/2, w/2 - 0.5, h, 1.2);
-  drawRoundRect(ctx, x + 0.5, y - h/2, w/2 - 0.5, h, 1.2);
-  ctx.fill();
-
-  // Apply subtle color-coded tint to pages (18% opacity of the book theme color)
-  ctx.fillStyle = `${color}2e`; // 2e hex = 46 dec = ~18% opacity
-  ctx.beginPath();
-  drawRoundRect(ctx, x - w/2, y - h/2, w/2 - 0.5, h, 1.2);
-  drawRoundRect(ctx, x + 0.5, y - h/2, w/2 - 0.5, h, 1.2);
-  ctx.fill();
-  
-  // 3. Draw Page Lines (indicating text)
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.18)';
-  ctx.lineWidth = 0.6;
-  ctx.beginPath();
-  
-  // Left page text lines
-  ctx.moveTo(x - w/2 + 3, y - h/4); ctx.lineTo(x - 3, y - h/4);
-  ctx.moveTo(x - w/2 + 3, y);       ctx.lineTo(x - 3, y);
-  ctx.moveTo(x - w/2 + 3, y + h/4); ctx.lineTo(x - 3, y + h/4);
-  
-  // Right page text lines
-  ctx.moveTo(x + 3, y - h/4);       ctx.lineTo(x + w/2 - 3, y - h/4);
-  ctx.moveTo(x + 3, y);             ctx.lineTo(x + w/2 - 3, y);
-  ctx.moveTo(x + 3, y + h/4);       ctx.lineTo(x + w/2 - 3, y + h/4);
-  ctx.stroke();
-  
-  // 4. Draw Center Spine
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(x, y - h/2);
-  ctx.lineTo(x, y + h/2);
-  ctx.stroke();
- 
-  // 5. Draw Gold Ribbon Bookmark
-  ctx.strokeStyle = '#d4af37';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(x, y - h/2 + 1);
-  ctx.lineTo(x, y + h/2 + size * 0.45);
-  ctx.stroke();
-};
 
 function App() {
   const [data, setData] = useState<GraphData | null>(null);
@@ -247,8 +34,8 @@ function App() {
   // Filtering States
   const [selectedBooks, setSelectedBooks] = useState<number[]>(Array.from({ length: 12 }, (_, i) => i + 1));
   const [selectedConcept, setSelectedConcept] = useState<string | null>(null);
-  const [minWeight, setMinWeight] = useState<number>(75); // Default to filter out weak links
-  const [maxConnections, setMaxConnections] = useState<number>(0); // 0 = Unlimited/Disabled
+  const [minWeight, setMinWeight] = useState<number>(75); 
+  const [maxConnections, setMaxConnections] = useState<number>(0); 
   const [mstEnabled, setMstEnabled] = useState<boolean>(true);
   const [showThemeAnchors, setShowThemeAnchors] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -267,6 +54,7 @@ function App() {
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
   const [graphMode, setGraphMode] = useState<'2d' | '3d'>('2d');
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fgRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const initialFitDone = useRef<boolean>(false);
@@ -318,7 +106,7 @@ function App() {
     if (!containerRef.current) return;
     
     const resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         setDimensions({
           width: entry.contentRect.width,
           height: entry.contentRect.height
@@ -330,31 +118,28 @@ function App() {
     return () => resizeObserver.disconnect();
   }, [loading, leftPanelCollapsed, rightPanelCollapsed]);
 
-
-
   // Focus camera on node (handles both 2D centering/zoom and 3D camera transitions)
-  const focusNode = (node: any, duration = 1000) => {
+  const focusNode = useCallback((node: GraphNode, duration = 1000) => {
     if (!fgRef.current || node.x === undefined || node.y === undefined) return;
     if (graphMode === '2d') {
       fgRef.current.centerAt(node.x, node.y, duration);
       fgRef.current.zoom(2.5, duration);
     } else {
-      // 3D camera zoom/focus: calculate offset camera coordinates pointing at node
       const distance = 120;
       const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z || 0);
       fgRef.current.cameraPosition(
-        { x: node.x * distRatio, y: node.y * distRatio, z: (node.z || 0) * distRatio }, // position
-        node, // lookAt
-        duration // transition time
+        { x: node.x * distRatio, y: node.y * distRatio, z: (node.z || 0) * distRatio }, 
+        node, 
+        duration 
       );
     }
-  };
+  }, [graphMode]);
 
   // Handle zooming to node
   const handleNodeSelect = (node: GraphNode) => {
     setSelectedNode(node);
     setSelectedLink(null);
-    setRightPanelCollapsed(false); // Uncollapse sidebar when node is selected
+    setRightPanelCollapsed(false); 
     
     // Zoom/Center camera on node
     focusNode(node, 1000);
@@ -396,168 +181,29 @@ function App() {
 
   // Calculate Node Degrees in full loaded dataset (to size nodes consistently)
   const nodeDegrees = useMemo(() => {
-    if (!data) return {};
-    const degrees: Record<string, number> = {};
-    data.links.forEach(link => {
-      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-      degrees[sourceId] = (degrees[sourceId] || 0) + 1;
-      degrees[targetId] = (degrees[targetId] || 0) + 1;
-    });
-    return degrees;
+    return calculateNodeDegrees(data);
   }, [data]);
 
   // Filtering Logic
   const filteredData = useMemo(() => {
-    if (!data) return { nodes: [], links: [] };
-
-    // 1. Filter Nodes based on Book Selection, Search Query, and Concept Filter
-    const matchedNodes = data.nodes.filter(node => {
-      // Always include thematic anchor nodes (book: 0) if toggle is enabled
-      if (node.isAnchor) return showThemeAnchors;
-
-      const isBookSelected = selectedBooks.includes(node.book);
-      if (!isBookSelected) return false;
-
-      // Filter by selected concept
-      if (selectedConcept && (!node.concepts || !node.concepts.includes(selectedConcept))) {
-        return false;
-      }
-
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesText = node.text.toLowerCase().includes(query);
-        const matchesBookChapter = `${node.book}.${node.chapter}`.includes(query);
-        const matchesBookName = BOOK_NAMES[node.book]?.toLowerCase().includes(query);
-        return matchesText || matchesBookChapter || matchesBookName;
-      }
-      return true;
+    return filterGraphData(data, {
+      selectedBooks,
+      selectedConcept,
+      searchQuery,
+      showThemeAnchors,
+      activeTakeaway,
+      mstEnabled,
+      minWeight,
+      maxConnections
     });
-
-    const matchedNodeIds = new Set(matchedNodes.map(n => n.id));
-
-    // 2. Filter Candidate Links (must connect two visible nodes)
-    const candidateLinks = data.links.filter(link => {
-      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-
-      // Link must connect two visible nodes
-      if (!matchedNodeIds.has(sourceId) || !matchedNodeIds.has(targetId)) return false;
-
-      // If a takeaway is active, only show connections inside that takeaway's node set
-      if (activeTakeaway) {
-        return activeTakeaway.relatedNodeIds.includes(sourceId) && activeTakeaway.relatedNodeIds.includes(targetId);
-      }
-
-      return true;
-    });
-
-    let activeLinks: typeof candidateLinks;
-
-    // 3. Process topology constraints (MST or Min Weight + KNN)
-    if (mstEnabled) {
-      // Implement Kruskal's algorithm for Maximum Spanning Tree (MST)
-      const sortedCandidateLinks = [...candidateLinks].sort((a, b) => b.weight - a.weight);
-      
-      const parent: Record<string, string> = {};
-      const find = (id: string): string => {
-        if (parent[id] === undefined) {
-          parent[id] = id;
-        }
-        if (parent[id] === id) return id;
-        return parent[id] = find(parent[id]); // Path compression
-      };
-      
-      const union = (id1: string, id2: string): boolean => {
-        const r1 = find(id1);
-        const r2 = find(id2);
-        if (r1 !== r2) {
-          parent[r1] = r2;
-          return true;
-        }
-        return false;
-      };
-
-      const mst: typeof candidateLinks = [];
-      for (const link of sortedCandidateLinks) {
-        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-        if (union(sourceId, targetId)) {
-          mst.push(link);
-        }
-      }
-      activeLinks = mst;
-    } else {
-      // Filter base candidate links by minimum weight threshold
-      activeLinks = candidateLinks.filter(link => link.weight >= minWeight);
-
-      // Apply K-Nearest Neighbors (KNN) local connections limit if active
-      if (maxConnections > 0) {
-        const sortedActiveLinks = [...activeLinks].sort((a, b) => b.weight - a.weight);
-        const nodeLinkCount: Record<string, number> = {};
-        
-        activeLinks = sortedActiveLinks.filter(link => {
-          // Gravity links to anchors are always preserved to keep visual clusters cohesive
-          if (link.isAnchorLink) return true;
-
-          const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-          const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-
-          if ((nodeLinkCount[sourceId] || 0) < maxConnections && (nodeLinkCount[targetId] || 0) < maxConnections) {
-            nodeLinkCount[sourceId] = (nodeLinkCount[sourceId] || 0) + 1;
-            nodeLinkCount[targetId] = (nodeLinkCount[targetId] || 0) + 1;
-            return true;
-          }
-          return false;
-        });
-      }
-    }
-
-    return {
-      nodes: matchedNodes,
-      links: activeLinks
-    };
   }, [data, selectedBooks, selectedConcept, minWeight, maxConnections, mstEnabled, showThemeAnchors, searchQuery, activeTakeaway]);
 
-  // Configure D3 simulation forces to prevent overlap and increase node spacing
-  useEffect(() => {
-    if (!fgRef.current || !data) return;
-
-    // Use a small timeout to ensure the D3 force layout is fully initialized by the library before we interact with it
-    const timer = setTimeout(() => {
-      if (!fgRef.current) return;
-      
-      try {
-        const chargeForce = fgRef.current.d3Force('charge');
-        const linkForce = fgRef.current.d3Force('link');
-        
-        if (graphMode === '2d') {
-          if (chargeForce) chargeForce.strength(-260);
-          if (linkForce) linkForce.distance(110);
-          fgRef.current.d3Force('x', forceX(dimensions.width / 2).strength(0.08));
-          fgRef.current.d3Force('y', forceY(dimensions.height / 2).strength(0.08));
-          fgRef.current.d3ReheatSimulation();
-        } else {
-          if (chargeForce) chargeForce.strength(-180);
-          if (linkForce) linkForce.distance(90);
-          fgRef.current.d3ReheatSimulation();
-        }
-      } catch (err) {
-        console.warn("Could not configure D3 forces yet (layout initialization pending):", err);
-      }
-    }, 120);
-
-    return () => clearTimeout(timer);
-  }, [data, filteredData, dimensions, graphMode]);
-
-
-
-  // Reset initial fit flag when filtered data changes to trigger refit on next layout stabilization
+  // Reset initial fit flag when filtered data changes to trigger refit
   useEffect(() => {
     initialFitDone.current = false;
   }, [filteredData]);
 
-  // Adjust camera to fit or center when dimensions change (sidebar toggle, resize, etc.)
+  // Adjust camera to fit or center when dimensions change
   useEffect(() => {
     if (fgRef.current && data) {
       const dimChanged = prevDimensions.current.width !== dimensions.width || prevDimensions.current.height !== dimensions.height;
@@ -567,7 +213,7 @@ function App() {
           if (selectedNode && selectedNode.x !== undefined && selectedNode.y !== undefined) {
             focusNode(selectedNode, 400);
           } else if (activeTakeaway) {
-            fgRef.current.zoomToFit(400, 85, (n: any) => activeTakeaway.relatedNodeIds.includes(n.id));
+            fgRef.current.zoomToFit(400, 85, (n: GraphNode) => activeTakeaway.relatedNodeIds.includes(n.id));
           } else {
             fgRef.current.zoomToFit(400, 85);
           }
@@ -575,9 +221,9 @@ function App() {
         return () => clearTimeout(timer);
       }
     }
-  }, [dimensions, data, selectedNode, activeTakeaway, graphMode]);
+  }, [dimensions, data, selectedNode, activeTakeaway, graphMode, focusNode]);
 
-  // Trigger a camera fit when switching to 3D mode to ensure elements are properly scaled and visible
+  // Trigger a camera fit when switching to 3D mode
   useEffect(() => {
     if (graphMode === '3d' && fgRef.current) {
       const timer = setTimeout(() => {
@@ -588,13 +234,6 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [graphMode]);
-
-  const handleEngineStop = () => {
-    if (!initialFitDone.current && fgRef.current) {
-      fgRef.current.zoomToFit(800, 85);
-      initialFitDone.current = true;
-    }
-  };
 
   // Keyboard listener to exit Zen Mode
   useEffect(() => {
@@ -607,6 +246,13 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const handleEngineStop = () => {
+    if (!initialFitDone.current && fgRef.current) {
+      fgRef.current.zoomToFit(800, 85);
+      initialFitDone.current = true;
+    }
+  };
+
   // Tour steps nodes
   const tourNodes = useMemo(() => {
     if (!activeTakeaway || !data) return [];
@@ -617,8 +263,6 @@ function App() {
     if (!tourNodes[step]) return;
     setTourCurrentStep(step);
     const targetNode = tourNodes[step];
-    
-    // Zoom/Center camera on node
     handleNodeSelect(targetNode);
   };
 
@@ -630,10 +274,9 @@ function App() {
     if (selectedNode) {
       highlightedNodes.add(selectedNode.id);
       
-      // Find neighbors
       filteredData.links.forEach(link => {
-        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        const sourceId = typeof link.source === 'object' ? (link.source as GraphNode).id : link.source;
+        const targetId = typeof link.target === 'object' ? (link.target as GraphNode).id : link.target;
         
         if (sourceId === selectedNode.id) {
           highlightedNodes.add(targetId);
@@ -647,8 +290,8 @@ function App() {
       activeTakeaway.relatedNodeIds.forEach(id => highlightedNodes.add(id));
       
       filteredData.links.forEach(link => {
-        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        const sourceId = typeof link.source === 'object' ? (link.source as GraphNode).id : link.source;
+        const targetId = typeof link.target === 'object' ? (link.target as GraphNode).id : link.target;
         
         if (highlightedNodes.has(sourceId) && highlightedNodes.has(targetId)) {
           highlightedLinks.add(`${sourceId}-${targetId}`);
@@ -663,37 +306,11 @@ function App() {
     };
   }, [selectedNode, activeTakeaway, filteredData]);
 
-  // Refresh graph visuals in 3D mode when node selections or hover states change
-  useEffect(() => {
-    if (fgRef.current && graphMode === '3d') {
-      fgRef.current.refresh();
-    }
-  }, [selectedNode, hoveredNode, highlightedDetails.hasActiveHighlight, graphMode]);
-
-  // Selected Node's Outgoing and Incoming links (to display in sidebar)
+  // Selected Node's Outgoing and Incoming links
   const nodeConnections = useMemo(() => {
-    if (!selectedNode || !data) return [];
-    
-    return data.links.filter(link => {
-      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-      return (sourceId === selectedNode.id || targetId === selectedNode.id) && link.weight >= minWeight;
-    }).map(link => {
-      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-      const neighborId = sourceId === selectedNode.id ? targetId : sourceId;
-      const neighborText = data.nodes.find(n => n.id === neighborId)?.text || '';
-      
-      return {
-        ...link,
-        neighborId,
-        neighborText,
-        isOutgoing: sourceId === selectedNode.id
-      };
-    }).sort((a, b) => b.weight - a.weight);
+    return getNodeConnections(selectedNode, data, minWeight);
   }, [selectedNode, data, minWeight]);
 
-  // Fit camera zoom to encompass all active graph elements
   const resetZoom = () => {
     if (fgRef.current) {
       fgRef.current.zoomToFit(800, 100);
@@ -703,325 +320,48 @@ function App() {
     }
   };
 
-  // Custom Node Drawing on Canvas (Open Book Icons - Upgraded Sizes)
-  const drawNode = (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const isHighlighted = highlightedDetails.nodes.has(node.id);
-    const isDimmed = highlightedDetails.hasActiveHighlight && !isHighlighted;
-    const isSelected = selectedNode?.id === node.id;
-    const isHovered = hoveredNode?.id === node.id;
-
-    ctx.save();
-
-    // Set alpha
-    let alpha = 1.0;
-    if (isDimmed) alpha = 0.12;
-    ctx.globalAlpha = alpha;
-
-    const nodeColor = node.isAnchor 
-      ? (THEME_COLORS[node.theme] || '#d4af37')
-      : (BOOK_COLORS[node.book] || '#9ca3af');
-
-    if (node.isAnchor) {
-      const size = 30.0; // Theme anchors are drawn very large
-      
-      // 1. Draw Ring / Glow
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, size * 1.5, 0, 2 * Math.PI, false);
-      ctx.fillStyle = isSelected || isHovered ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}10`;
-      ctx.fill();
-      
-      ctx.strokeStyle = isSelected ? '#ffffff' : nodeColor;
-      ctx.lineWidth = isSelected || isHovered ? 3.0 / globalScale : 1.5 / globalScale;
-      ctx.stroke();
-
-      // 2. Draw Thematic Emblem (Double-border Circle)
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
-      ctx.fillStyle = 'var(--bg-card)';
-      ctx.fill();
-      ctx.stroke();
-
-      // Inner decorative ring
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, size * 0.75, 0, 2 * Math.PI, false);
-      ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
-      ctx.lineWidth = 1.0 / globalScale;
-      ctx.stroke();
-
-      // 3. Render Large Theme Label inside Emblem
-      const label = node.title || node.id;
-      const fontSize = 7.0 / globalScale;
-      ctx.font = `bold ${fontSize}px var(--font-serif)`;
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      const words = label.split(' ');
-      if (words.length > 2) {
-        const line1 = words.slice(0, 2).join(' ');
-        const line2 = words.slice(2).join(' ');
-        ctx.fillText(line1, node.x, node.y - fontSize * 0.75);
-        ctx.fillText(line2, node.x, node.y + fontSize * 0.75);
-      } else {
-        ctx.fillText(label, node.x, node.y);
-      }
-      
-      ctx.restore();
-      return;
-    }
-
-    const degree = nodeDegrees[node.id] || 0;
-    const baseRadius = 11.0;
-    const size = baseRadius + Math.sqrt(degree) * 1.35;
-
-    // 1. Draw Ring / Glow for highlighted or hovered nodes
-    if (isSelected || isHovered) {
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, size * 1.8, 0, 2 * Math.PI, false);
-      ctx.fillStyle = isSelected ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}22`;
-      ctx.fill();
-      
-      if (isSelected) {
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5 / globalScale;
-        ctx.stroke();
+  const handleSelectTakeaway = (t: Takeaway | null) => {
+    setSelectedNode(null);
+    setSelectedLink(null);
+    setActiveTakeaway(t);
+    setTourModeActive(false);
+    
+    if (t) {
+      setRightPanelCollapsed(false);
+      if (fgRef.current && t.relatedNodeIds.length > 0) {
+        setTimeout(() => {
+          fgRef.current.zoomToFit(800, 100, (n: GraphNode) => t.relatedNodeIds.includes(n.id));
+        }, 50);
       }
     }
+  };
 
-    // 2. Draw Book Icon
-    drawBookIcon(ctx, node.x, node.y, size, nodeColor, isHighlighted && !isDimmed);
-
-    // 3. Label rendering
-    const showLabel = globalScale > 1.8 || isHovered || isSelected || (isHighlighted && !isDimmed);
-    if (showLabel) {
-      const label = `${node.book}.${node.chapter}`;
-      const fontSize = Math.max(3.2, 9 / globalScale);
-      ctx.font = `${isSelected || isHovered ? 'bold' : 'normal'} ${fontSize}px var(--font-sans)`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      // Label box
-      ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
-      const textWidth = ctx.measureText(label).width;
-      ctx.fillRect(
-        node.x - textWidth / 2 - 2, 
-        node.y + size * 1.2 + 2, 
-        textWidth + 4, 
-        fontSize + 2
+  const handleZoomIn = () => {
+    if (!fgRef.current) return;
+    if (graphMode === '2d') {
+      fgRef.current.zoom(fgRef.current.zoom() * 1.4, 300);
+    } else {
+      const cam = fgRef.current.cameraPosition();
+      fgRef.current.cameraPosition(
+        { x: cam.x * 0.75, y: cam.y * 0.75, z: cam.z * 0.75 },
+        undefined,
+        300
       );
-      
-      ctx.fillStyle = isSelected || isHovered ? '#ffffff' : '#e5e7eb';
-      ctx.fillText(label, node.x, node.y + size * 1.2 + 2 + fontSize / 2);
-    }
-
-    ctx.restore();
-  };
-
-  // Render nodes as 3D canvas textures mapped to Three.js Sprites
-  const createNodeSprite = (node: any) => {
-    try {
-      const canvas = document.createElement('canvas');
-      const scale = 2.0; 
-      
-      const nodeColor = node.isAnchor 
-        ? (THEME_COLORS[node.theme] || '#d4af37')
-        : (BOOK_COLORS[node.book] || '#9ca3af');
-        
-      const degree = nodeDegrees[node.id] || 0;
-      const baseRadius = 11.0;
-      const size = node.isAnchor ? 30.0 : (baseRadius + Math.sqrt(degree) * 1.35);
-      
-      const canvasSize = node.isAnchor ? 120 * scale : 60 * scale;
-      canvas.width = canvasSize;
-      canvas.height = canvasSize;
-      
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return new THREE.Object3D();
-      
-      ctx.scale(scale, scale);
-      const cx = canvasSize / (2 * scale);
-      const cy = canvasSize / (2 * scale);
-      
-      const isHighlighted = highlightedDetails.nodes.has(node.id);
-      const isDimmed = highlightedDetails.hasActiveHighlight && !isHighlighted;
-      const isSelected = selectedNode?.id === node.id;
-      const isHovered = hoveredNode?.id === node.id;
-      
-      ctx.save();
-      
-      let alpha = 1.0;
-      if (isDimmed) alpha = 0.15;
-      ctx.globalAlpha = alpha;
-      
-      if (node.isAnchor) {
-        // 1. Draw Ring / Glow
-        ctx.beginPath();
-        ctx.arc(cx, cy, size * 1.5, 0, 2 * Math.PI, false);
-        ctx.fillStyle = isSelected || isHovered ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}10`;
-        ctx.fill();
-        
-        ctx.strokeStyle = isSelected ? '#ffffff' : nodeColor;
-        ctx.lineWidth = isSelected || isHovered ? 3.0 : 1.5;
-        ctx.stroke();
-        
-        // 2. Draw Thematic Emblem
-        ctx.beginPath();
-        ctx.arc(cx, cy, size, 0, 2 * Math.PI, false);
-        ctx.fillStyle = '#0a0c10';
-        ctx.fill();
-        ctx.stroke();
-        
-        // Inner decorative ring
-        ctx.beginPath();
-        ctx.arc(cx, cy, size * 0.75, 0, 2 * Math.PI, false);
-        ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
-        ctx.lineWidth = 1.0;
-        ctx.stroke();
-        
-        // 3. Render Large Theme Label
-        const label = node.title || node.id;
-        const fontSize = 8.0;
-        ctx.font = `bold ${fontSize}px sans-serif`;
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        const words = label.split(' ');
-        if (words.length > 2) {
-          const line1 = words.slice(0, 2).join(' ');
-          const line2 = words.slice(2).join(' ');
-          ctx.fillText(line1, cx, cy - fontSize * 0.75);
-          ctx.fillText(line2, cx, cy + fontSize * 0.75);
-        } else {
-          ctx.fillText(label, cx, cy);
-        }
-      } else {
-        // Standard Node
-        if (isSelected || isHovered) {
-          ctx.beginPath();
-          ctx.arc(cx, cy, size * 1.8, 0, 2 * Math.PI, false);
-          ctx.fillStyle = isSelected ? 'rgba(255, 255, 255, 0.15)' : `${nodeColor}22`;
-          ctx.fill();
-          
-          if (isSelected) {
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-          }
-        }
-        
-        drawBookIcon(ctx, cx, cy, size, nodeColor, isHighlighted && !isDimmed);
-        
-        // Label
-        const label = `${node.book}.${node.chapter}`;
-        const fontSize = 9.0;
-        ctx.font = `${isSelected || isHovered ? 'bold' : 'normal'} ${fontSize}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
-        const textWidth = ctx.measureText(label).width;
-        ctx.fillRect(
-          cx - textWidth / 2 - 2, 
-          cy + size * 1.2 + 2, 
-          textWidth + 4, 
-          fontSize + 2
-        );
-        
-        ctx.fillStyle = isSelected || isHovered ? '#ffffff' : '#e5e7eb';
-        ctx.fillText(label, cx, cy + size * 1.2 + 2 + fontSize / 2);
-      }
-      
-      ctx.restore();
-      
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.needsUpdate = true;
-      
-      const material = new THREE.SpriteMaterial({ 
-        map: texture, 
-        transparent: true,
-        depthWrite: false
-      });
-      
-      const sprite = new THREE.Sprite(material);
-      const worldScale = node.isAnchor ? 38 : 22;
-      sprite.scale.set(worldScale, worldScale, 1);
-      
-      return sprite;
-    } catch (err) {
-      console.error("Error creating node sprite for node:", node.id, err);
-      // Fallback to basic Mesh so the simulation continues running safely
-      const fallbackColor = node.isAnchor 
-        ? (THEME_COLORS[node.theme] || '#d4af37')
-        : (BOOK_COLORS[node.book] || '#9ca3af');
-      const geometry = new THREE.SphereGeometry(node.isAnchor ? 12 : 6, 8, 8);
-      const material = new THREE.MeshBasicMaterial({ color: fallbackColor });
-      return new THREE.Mesh(geometry, material);
     }
   };
 
-  // Custom Link Drawing / Coloration
-  const getLinkColor = (link: any) => {
-    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-    
-    const isSelected = selectedLink && 
-      (typeof selectedLink.source === 'object' ? selectedLink.source.id : selectedLink.source) === sourceId &&
-      (typeof selectedLink.target === 'object' ? selectedLink.target.id : selectedLink.target) === targetId;
-
-    if (isSelected) return '#ffffff';
-
-    const isHighlighted = highlightedDetails.links.has(`${sourceId}-${targetId}`) || highlightedDetails.links.has(`${targetId}-${sourceId}`);
-    const isDimmed = highlightedDetails.hasActiveHighlight && !isHighlighted;
-    
-    if (isDimmed) return 'rgba(255, 255, 255, 0.02)';
-    
-    // Custom style for Anchor gravity links
-    if (link.isAnchorLink) {
-      let themeId = null;
-      if (targetId && targetId.startsWith('theme_')) {
-        themeId = targetId.replace('theme_', '').toUpperCase();
-      } else if (sourceId && sourceId.startsWith('theme_')) {
-        themeId = sourceId.replace('theme_', '').toUpperCase();
-      }
-      
-      const themeColor = (themeId && THEME_COLORS[themeId]) ? THEME_COLORS[themeId] : '#d4af37';
-      
-      if (isHighlighted) return `${themeColor}cc`; // Opaque theme color when highlighted
-      return `${themeColor}26`; // Faint theme color (15% opacity, visible on dark backgrounds)
+  const handleZoomOut = () => {
+    if (!fgRef.current) return;
+    if (graphMode === '2d') {
+      fgRef.current.zoom(fgRef.current.zoom() / 1.4, 300);
+    } else {
+      const cam = fgRef.current.cameraPosition();
+      fgRef.current.cameraPosition(
+        { x: cam.x * 1.35, y: cam.y * 1.35, z: cam.z * 1.35 },
+        undefined,
+        300
+      );
     }
-
-    if (isHighlighted) return 'rgba(212, 175, 55, 0.5)'; // Active Gold Link
-    
-    // Normal state - map opacity to similarity weight
-    const opacity = Math.min(0.25, Math.max(0.04, (link.weight / 100) * 0.25));
-    return `rgba(255, 255, 255, ${opacity})`;
-  };
-
-  const getLinkWidth = (link: any) => {
-    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-    
-    const isHighlighted = highlightedDetails.links.has(`${sourceId}-${targetId}`) || highlightedDetails.links.has(`${targetId}-${sourceId}`);
-
-    if (link.isAnchorLink) {
-      return isHighlighted ? 2.5 : 0.8; // Thin but visible gravity lines (0.8px), thicker when active
-    }
-
-    return isHighlighted ? 4.0 : Math.max(1.0, (link.weight / 100) * 3.5);
-  };
-
-  // Particles flowing through links to give it a neural pathway look
-  const getLinkParticles = (link: any) => {
-    if (link.isAnchorLink) return 0; // No particles on gravity links
-
-    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-    
-    const isHighlighted = highlightedDetails.links.has(`${sourceId}-${targetId}`) || highlightedDetails.links.has(`${targetId}-${sourceId}`);
-    
-    // Let particles flow on highlighted/selected path
-    return isHighlighted ? 2 : 0;
   };
 
   if (loading) {
@@ -1096,399 +436,73 @@ function App() {
         </button>
 
         {/* LEFT SIDEBAR: FILTERS & TAKEAWAYS */}
-        <aside className={`sidebar glass ${leftPanelCollapsed ? 'collapsed' : ''}`}>
-          <div className="sidebar-header left-header">
-            <h2><Sliders size={16} /> Filters & Thematic Stories</h2>
-          </div>
-          
-          <div className="sidebar-content scrollable">
-            {/* Search Bar */}
-            <div className="search-wrapper">
-              <Search className="search-icon" />
-              <input 
-                type="text" 
-                className="search-input" 
-                placeholder="Search text, books, themes..."
-                value={searchQuery}
-                onChange={e => {
-                  setSearchQuery(e.target.value);
-                  setActiveTakeaway(null); // Clear active story on search
-                }}
-              />
-            </div>
-
-            {/* Book Selector */}
-            <div>
-              <div className="filter-section-title">
-                <span>Filter Books</span>
-                <div>
-                  <button onClick={selectAllBooks} style={{ marginRight: 8 }}>All</button>
-                  <button onClick={clearAllBooks}>None</button>
-                </div>
-              </div>
-              <div className="books-grid">
-                {Array.from({ length: 12 }, (_, i) => i + 1).map(b => (
-                  <label key={b}>
-                    <input 
-                      type="checkbox" 
-                      className="book-checkbox"
-                      checked={selectedBooks.includes(b)}
-                      onChange={() => toggleBook(b)}
-                    />
-                    <span 
-                      className="book-label"
-                      style={{ 
-                        borderColor: selectedBooks.includes(b) ? BOOK_COLORS[b] : 'var(--border-glass)',
-                        background: selectedBooks.includes(b) ? `${BOOK_COLORS[b]}15` : 'rgba(0,0,0,0.2)',
-                        color: selectedBooks.includes(b) ? BOOK_COLORS[b] : 'var(--text-muted)'
-                      }}
-                    >
-                      {b}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Theme Selector */}
-            <div>
-              <div className="filter-section-title">
-                <span>Stoic Themes</span>
-                {selectedConcept && (
-                  <button onClick={() => selectConceptFilter(null)}>Clear Theme</button>
-                )}
-              </div>
-              <div className="theme-tag-container">
-                {Object.entries(STOIC_CONCEPTS).map(([key, concept]) => {
-                  const count = data?.nodes.filter(n => n.concepts?.includes(key)).length || 0;
-                  return (
-                    <div
-                      key={key}
-                      className={`theme-pill ${selectedConcept === key ? 'active' : ''}`}
-                      style={{ 
-                        color: concept.color,
-                        borderColor: selectedConcept === key ? concept.color : 'var(--border-glass)',
-                        background: selectedConcept === key ? `${concept.color}15` : 'rgba(0,0,0,0.2)'
-                      }}
-                      onClick={() => selectConceptFilter(selectedConcept === key ? null : key)}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span className="theme-bullet" style={{ backgroundColor: concept.color }}></span>
-                        <span>{concept.label}</span>
-                      </div>
-                      <span style={{ opacity: 0.6, fontSize: '0.7rem' }}>{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Topology Controls */}
-            <div className="slider-container" style={{ marginTop: 15 }}>
-              <div className="filter-section-title" style={{ marginBottom: 8, fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                <span>Graph Topology</span>
-              </div>
-              
-              {/* MST Backbone Toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-main)', width: '100%' }}>
-                  <input 
-                    type="checkbox"
-                    checked={mstEnabled}
-                    onChange={e => setMstEnabled(e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <span style={{ fontWeight: 'bold' }}>MST Spanning Backbone</span>
-                </label>
-              </div>
-
-              {/* Show Theme Anchors Toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-main)', width: '100%' }}>
-                  <input 
-                    type="checkbox"
-                    checked={showThemeAnchors}
-                    onChange={e => setShowThemeAnchors(e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <span>Show Theme Anchors</span>
-                </label>
-              </div>
-
-              {/* Cosine Similarity Slider */}
-              <div 
-                style={{ opacity: mstEnabled ? 0.45 : 1.0, transition: 'opacity 0.2s', marginBottom: 16 }}
-                title={mstEnabled ? "This setting is locked while MST Spanning Backbone is active. Click the MST toggle above to unlock." : undefined}
-              >
-                <div className="slider-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>Min Connection Weight</span>
-                  <span className="serif-title" style={{ fontSize: '0.8rem' }}>
-                    {minWeight} {mstEnabled && <span style={{ color: 'var(--accent-gold)', fontSize: '0.65rem', fontWeight: 'normal', marginLeft: 4 }}>🔒 Locked</span>}
-                  </span>
-                </div>
-                <input 
-                  type="range" 
-                  className="weight-slider"
-                  min="10" 
-                  max="90" 
-                  value={minWeight}
-                  disabled={mstEnabled}
-                  onChange={e => setMinWeight(parseInt(e.target.value))}
-                />
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-dark)', marginTop: -4, display: 'block' }}>
-                  {mstEnabled 
-                    ? "Locked in MST mode to maintain full connectivity." 
-                    : "Filter out weaker semantic bonds to untangle graph complexity."
-                  }
-                </span>
-              </div>
-
-              {/* KNN Connections Slider */}
-              <div 
-                style={{ opacity: mstEnabled ? 0.45 : 1.0, transition: 'opacity 0.2s' }}
-                title={mstEnabled ? "This setting is locked while MST Spanning Backbone is active. Click the MST toggle above to unlock." : undefined}
-              >
-                <div className="slider-header" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>Max Connections per Node</span>
-                  <span className="serif-title" style={{ fontSize: '0.8rem' }}>
-                    {maxConnections === 0 ? 'Unlimited' : maxConnections} {mstEnabled && <span style={{ color: 'var(--accent-gold)', fontSize: '0.65rem', fontWeight: 'normal', marginLeft: 4 }}>🔒 Locked</span>}
-                  </span>
-                </div>
-                <input 
-                  type="range" 
-                  className="weight-slider"
-                  min="0" 
-                  max="6" 
-                  value={maxConnections}
-                  disabled={mstEnabled}
-                  onChange={e => setMaxConnections(parseInt(e.target.value))}
-                />
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-dark)', marginTop: -4, display: 'block' }}>
-                  {mstEnabled 
-                    ? "Locked in MST mode to maintain spanning tree connectivity." 
-                    : "Limit links per passage to prevent dense hairballs."
-                  }
-                </span>
-              </div>
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border-glass)' }} />
-
-            {/* Thematic Takeaways */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div className="filter-section-title">
-                <span>Stoic Storylines</span>
-                {activeTakeaway && (
-                  <button onClick={() => setActiveTakeaway(null)}>Clear Story</button>
-                )}
-              </div>
-              
-              <div className="takeaway-list">
-                {data?.takeaways.map(t => (
-                  <div 
-                    key={t.id} 
-                    className={`takeaway-card ${activeTakeaway?.id === t.id ? 'active' : ''}`}
-                    onClick={() => {
-                      setSelectedNode(null);
-                      setSelectedLink(null);
-                      
-                      if (activeTakeaway?.id === t.id) {
-                        setActiveTakeaway(null);
-                      } else {
-                        setActiveTakeaway(t);
-                        setRightPanelCollapsed(false); // Uncollapse sidebar when story is selected
-                        
-                        // Fit camera to story nodes if refs available
-                        if (fgRef.current && t.relatedNodeIds.length > 0) {
-                          setTimeout(() => {
-                            fgRef.current.zoomToFit(800, 100, (n: any) => t.relatedNodeIds.includes(n.id));
-                          }, 50);
-                        }
-                      }
-                    }}
-                  >
-                    <h3><Sparkles size={13} /> {t.title}</h3>
-                    <p>{t.story.slice(0, 140)}...</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </aside>
+        <SidebarLeft 
+          collapsed={leftPanelCollapsed}
+          searchQuery={searchQuery}
+          setSearchQuery={(q) => {
+            setSearchQuery(q);
+            setActiveTakeaway(null); 
+          }}
+          selectedBooks={selectedBooks}
+          toggleBook={toggleBook}
+          selectAllBooks={selectAllBooks}
+          clearAllBooks={clearAllBooks}
+          selectedConcept={selectedConcept}
+          selectConceptFilter={selectConceptFilter}
+          mstEnabled={mstEnabled}
+          setMstEnabled={setMstEnabled}
+          showThemeAnchors={showThemeAnchors}
+          setShowThemeAnchors={setShowThemeAnchors}
+          minWeight={minWeight}
+          setMinWeight={setMinWeight}
+          maxConnections={maxConnections}
+          setMaxConnections={setMaxConnections}
+          activeTakeaway={activeTakeaway}
+          onSelectTakeaway={handleSelectTakeaway}
+          data={data}
+        />
 
         {/* CENTER INTERACTIVE GRAPH CONTAINER */}
         <div className="graph-container" ref={containerRef}>
           {data && (
-            graphMode === '2d' ? (
-              <ForceGraph2D
-                ref={fgRef}
-                graphData={filteredData}
-                width={dimensions.width}
-                height={dimensions.height}
-                
-                // Custom rendering callbacks
-                nodeCanvasObject={drawNode}
-                
-                // Link styling callbacks
-                linkColor={getLinkColor}
-                linkWidth={getLinkWidth}
-                
-                // Directional Particles (flows along lines)
-                linkDirectionalParticles={getLinkParticles}
-                linkDirectionalParticleSpeed={0.005}
-                linkDirectionalParticleWidth={1.8}
-                linkDirectionalParticleColor={() => '#d4af37'}
-                
-                // Interaction bindings
-                onNodeClick={handleNodeSelect}
-                onNodeHover={setHoveredNode}
-                
-                onLinkClick={(link) => {
-                  setSelectedLink(link);
-                  setSelectedNode(null);
-                  setRightPanelCollapsed(false); // Uncollapse sidebar when link is selected
-                }}
-                
-                onBackgroundClick={() => {
-                  setSelectedNode(null);
-                  setSelectedLink(null);
-                  setActiveTakeaway(null);
-                }}
-                
-                // Physics settings
-                cooldownTicks={120}
-                d3VelocityDecay={0.3}
-                onEngineStop={handleEngineStop}
-              />
-            ) : (
-              <ErrorBoundary>
-                <ForceGraph3D
-                  ref={fgRef}
-                  graphData={filteredData}
-                  width={dimensions.width}
-                  height={dimensions.height}
-                  backgroundColor="#0a0c10"
-                  
-                  // Custom rendering (ThreeJS Sprite)
-                  nodeThreeObject={createNodeSprite}
-                  
-                  // Link styling callbacks
-                  linkColor={getLinkColor}
-                  
-                  // Directional Particles (flows along lines)
-                  linkDirectionalParticles={getLinkParticles}
-                  linkDirectionalParticleSpeed={0.005}
-                  linkDirectionalParticleWidth={1.2}
-                  linkDirectionalParticleColor={() => '#d4af37'}
-                  
-                  // Interaction bindings
-                  onNodeClick={handleNodeSelect}
-                  onNodeHover={(node, prevNode) => {
-                    setHoveredNode(node);
-                    // Scale up node object on hover in 3D space
-                    if (node && node.__threeObj) {
-                      const worldScale = node.isAnchor ? 38 : 22;
-                      node.__threeObj.scale.set(worldScale * 1.3, worldScale * 1.3, 1);
-                    }
-                    if (prevNode && prevNode.__threeObj) {
-                      const worldScale = prevNode.isAnchor ? 38 : 22;
-                      prevNode.__threeObj.scale.set(worldScale, worldScale, 1);
-                    }
-                  }}
-                  
-                  onLinkClick={(link) => {
-                    setSelectedLink(link);
-                    setSelectedNode(null);
-                    setRightPanelCollapsed(false);
-                  }}
-                  
-                  onBackgroundClick={() => {
-                    setSelectedNode(null);
-                    setSelectedLink(null);
-                    setActiveTakeaway(null);
-                  }}
-                  
-                  // Physics settings
-                  cooldownTicks={120}
-                  onEngineStop={handleEngineStop}
-                />
-              </ErrorBoundary>
-            )
+            <ForceGraphWrapper 
+              fgRef={fgRef}
+              graphMode={graphMode}
+              filteredData={filteredData}
+              dimensions={dimensions}
+              selectedNode={selectedNode}
+              selectedLink={selectedLink}
+              hoveredNode={hoveredNode}
+              setHoveredNode={setHoveredNode}
+              highlightedDetails={highlightedDetails}
+              nodeDegrees={nodeDegrees}
+              onNodeSelect={handleNodeSelect}
+              onLinkSelect={(link) => {
+                setSelectedLink(link);
+                setSelectedNode(null);
+                setRightPanelCollapsed(false);
+              }}
+              onBackgroundClick={() => {
+                setSelectedNode(null);
+                setSelectedLink(null);
+                setActiveTakeaway(null);
+              }}
+              onEngineStop={handleEngineStop}
+              rawGraphDataLoaded={data !== null}
+            />
           )}
 
           {/* Floating Zoom Controls Toolbar */}
-          <div className="graph-controls glass" style={{ 
-            bottom: 24, 
-            left: 'unset', 
-            right: 24, 
-            transform: 'none', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 8, 
-            padding: 8, 
-            borderRadius: 8 
-          }}>
-            <button 
-              className="collapse-btn" 
-              onClick={() => {
-                if (!fgRef.current) return;
-                if (graphMode === '2d') {
-                  fgRef.current.zoom(fgRef.current.zoom() * 1.4, 300);
-                } else {
-                  const cam = fgRef.current.cameraPosition();
-                  fgRef.current.cameraPosition(
-                    { x: cam.x * 0.75, y: cam.y * 0.75, z: cam.z * 0.75 },
-                    undefined,
-                    300
-                  );
-                }
-              }} 
-              title="Zoom In"
-            >
-              <Plus size={16} />
-            </button>
-            <button 
-              className="collapse-btn" 
-              onClick={() => {
-                if (!fgRef.current) return;
-                if (graphMode === '2d') {
-                  fgRef.current.zoom(fgRef.current.zoom() / 1.4, 300);
-                } else {
-                  const cam = fgRef.current.cameraPosition();
-                  fgRef.current.cameraPosition(
-                    { x: cam.x * 1.35, y: cam.y * 1.35, z: cam.z * 1.35 },
-                    undefined,
-                    300
-                  );
-                }
-              }} 
-              title="Zoom Out"
-            >
-              <Minus size={16} />
-            </button>
-            <button 
-              className="collapse-btn" 
-              onClick={resetZoom} 
-              title="Recenter & Fit"
-            >
-              <Maximize2 size={16} />
-            </button>
-            <button 
-              className={`collapse-btn ${graphMode === '3d' ? 'active-mode' : ''}`}
-              onClick={() => {
-                setGraphMode(prev => prev === '2d' ? '3d' : '2d');
-                initialFitDone.current = false;
-              }}
-              title={graphMode === '2d' ? "Switch to 3D Space View" : "Switch to 2D Flat View"}
-              style={{
-                background: graphMode === '3d' ? 'rgba(212, 175, 55, 0.25)' : 'transparent',
-                borderColor: graphMode === '3d' ? '#d4af37' : 'rgba(255, 255, 255, 0.15)',
-                color: graphMode === '3d' ? '#d4af37' : '#ffffff'
-              }}
-            >
-              <Orbit size={16} />
-            </button>
-          </div>
+          <GraphToolbar 
+            graphMode={graphMode}
+            onToggleGraphMode={() => {
+              setGraphMode(prev => prev === '2d' ? '3d' : '2d');
+              initialFitDone.current = false;
+            }}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onRecenter={resetZoom}
+          />
 
           {activeTakeaway && (
             <div className="glass" style={{
@@ -1519,364 +533,23 @@ function App() {
         </button>
 
         {/* RIGHT SIDEBAR: PASSAGE / EDGE DETAILS */}
-        <aside className={`sidebar glass ${rightPanelCollapsed ? 'collapsed' : ''}`}>
-          <div className="sidebar-header right-header">
-            <h2><BookOpen size={16} /> Details Panel</h2>
-          </div>
-          
-          <div className="sidebar-content scrollable">
-            {/* Tour Navigation stepper rendered at the top of Details panel if active */}
-            {tourModeActive && activeTakeaway && (
-              <div className="tour-container">
-                <div className="tour-header">
-                  <span className="tour-title">Story Tour</span>
-                  <button 
-                    className="close-detail-btn"
-                    style={{ padding: '2px 6px', fontSize: '0.7rem' }}
-                    onClick={() => {
-                      setTourModeActive(false);
-                    }}
-                  >
-                    Exit Tour
-                  </button>
-                </div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-gold)' }}>
-                  {activeTakeaway.title}
-                </div>
-                <div className="tour-stepper">
-                  <button 
-                    className="tour-btn"
-                    onClick={() => handleTourStepChange(tourCurrentStep - 1)}
-                    disabled={tourCurrentStep === 0}
-                  >
-                    &larr;
-                  </button>
-                  <span className="tour-step-badge">
-                    Passage {tourCurrentStep + 1} of {tourNodes.length}
-                  </span>
-                  <button 
-                    className="tour-btn"
-                    onClick={() => handleTourStepChange(tourCurrentStep + 1)}
-                    disabled={tourCurrentStep === tourNodes.length - 1}
-                  >
-                    &rarr;
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {selectedNode ? (
-              selectedNode.isAnchor ? (
-                <div className="detail-card">
-                  <div className="detail-header" style={{ borderBottom: `2px solid ${THEME_COLORS[selectedNode.theme || ''] || 'var(--accent-gold)'}` }}>
-                    <div className="passage-meta" style={{ color: THEME_COLORS[selectedNode.theme || ''] || 'var(--accent-gold)', fontWeight: 'bold' }}>
-                      Stoic Theme Hub
-                    </div>
-                    <button 
-                      className="close-detail-btn"
-                      onClick={() => {
-                        setSelectedNode(null);
-                        if (tourModeActive) setTourModeActive(false);
-                      }}
-                      title="Close details"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                  
-                  <div className="detail-body">
-                    <h3 className="serif-title" style={{ fontSize: '1.4rem', color: '#ffffff', marginTop: 10, marginBottom: 10 }}>
-                      {selectedNode.title}
-                    </h3>
-                    <div className="passage-content serif-text" style={{ fontSize: '0.9rem', lineHeight: 1.5, fontStyle: 'italic', marginBottom: 20 }}>
-                      "{selectedNode.text}"
-                    </div>
-
-                    <div className="connections-section">
-                      <h3 className="connections-title">
-                        Meditations in this Theme ({data?.nodes.filter((n: any) => n.theme === selectedNode.theme && !n.isAnchor).length || 0})
-                      </h3>
-                      
-                      <div className="connections-list" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                        {data?.nodes
-                          .filter((n: any) => n.theme === selectedNode.theme && !n.isAnchor)
-                          .map((n: any) => (
-                            <div 
-                              key={n.id} 
-                              className="connection-item"
-                              style={{ padding: '8px 12px', borderLeftColor: THEME_COLORS[selectedNode.theme || ''] }}
-                              onClick={() => handleNodeSelect(n)}
-                            >
-                              <div className="connection-item-header">
-                                <span className="connection-node-id" style={{ fontWeight: 'bold' }}>
-                                  Passage {n.id.replace('B', '').replace('_P', '.')}
-                                </span>
-                                <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>
-                                  Book {n.book}
-                                </span>
-                              </div>
-                              <p className="connection-description" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                {n.text}
-                              </p>
-                            </div>
-                          ))
-                        }
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="detail-card">
-                  <div className="detail-header">
-                    <div className="passage-meta">
-                      Book {selectedNode.book}, Passage {selectedNode.chapter}
-                    </div>
-                    <button 
-                      className="close-detail-btn"
-                      onClick={() => {
-                        setSelectedNode(null);
-                        if (tourModeActive) setTourModeActive(false);
-                      }}
-                      title="Close details"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                  
-                  <div className="detail-body">
-                    <div className="passage-content serif-text manuscript-dropcap">
-                      "{selectedNode.text}"
-                    </div>
-
-                    {selectedNode.concepts && selectedNode.concepts.length > 0 && (
-                      <div className="passage-concept-tags">
-                        {selectedNode.concepts.map(key => {
-                          const concept = STOIC_CONCEPTS[key];
-                          if (!concept) return null;
-                          return (
-                            <span 
-                              key={key} 
-                              className="concept-pill"
-                              style={{ 
-                                color: concept.color, 
-                                borderColor: `${concept.color}40`,
-                                background: `${concept.color}10` 
-                              }}
-                            >
-                              {concept.label}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <div className="connections-section">
-                      <h3 className="connections-title">
-                        Thematic Connections ({nodeConnections.length})
-                      </h3>
-                      
-                      <div className="connections-list">
-                        {nodeConnections.length > 0 ? (
-                          nodeConnections.map((link, idx) => (
-                            <div 
-                              key={idx} 
-                              className="connection-item"
-                              onClick={() => {
-                                const neighbor = data?.nodes.find(n => n.id === link.neighborId);
-                                if (neighbor) handleNodeSelect(neighbor);
-                              }}
-                            >
-                              <div className="connection-item-header">
-                                <span className="connection-node-id">
-                                  Passage {link.neighborId.replace('B', '').replace('_P', '.')}
-                                </span>
-                                <span className="connection-weight">
-                                  Strength: {link.weight}/100
-                                </span>
-                              </div>
-                              <span className="connection-label">
-                                {link.label}
-                              </span>
-                              <p className="connection-description">
-                                {link.description}
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-dark)' }}>
-                            No semantic connections found at this threshold. Try lowering the "Min Connection Weight" slider.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            ) : selectedLink ? (
-              <div className="detail-card">
-                <div className="detail-header">
-                  <div className="passage-meta">
-                    Semantic Bond
-                  </div>
-                  <button 
-                    className="close-detail-btn"
-                    onClick={() => setSelectedLink(null)}
-                  >
-                    &times;
-                  </button>
-                </div>
-
-                <div className="detail-body">
-                  <div className="edge-detail-panel">
-                    <span className="edge-detail-title">
-                      <Sparkles size={12} />
-                      {selectedLink.label}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', margin: '4px 0 10px' }}>
-                      Connection strength: <strong>{selectedLink.weight} / 100</strong>
-                    </span>
-                    <p className="edge-detail-text">
-                      {selectedLink.description}
-                    </p>
-                  </div>
-
-                  {/* Source Node Preview */}
-                  <div 
-                    className="connection-item"
-                    style={{ marginTop: 10, cursor: 'pointer' }}
-                    onClick={() => {
-                      const srcNode = typeof selectedLink.source === 'object' ? selectedLink.source : data?.nodes.find(n => n.id === selectedLink.source);
-                      if (srcNode) handleNodeSelect(srcNode);
-                    }}
-                  >
-                    <div className="connection-node-id" style={{ marginBottom: 4 }}>
-                      Source: Passage {(typeof selectedLink.source === 'object' ? selectedLink.source.id : selectedLink.source).replace('B', '').replace('_P', '.')}
-                    </div>
-                    <div className="serif-text" style={{ 
-                      fontSize: '0.8rem', 
-                      lineHeight: 1.4, 
-                      paddingRight: 4, 
-                      color: 'var(--text-muted)',
-                      fontStyle: 'italic'
-                    }}>
-                      "{data?.nodes.find(n => n.id === (typeof selectedLink.source === 'object' ? selectedLink.source.id : selectedLink.source))?.text}"
-                    </div>
-                  </div>
-
-                  {/* Target Node Preview */}
-                  <div 
-                    className="connection-item"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                      const tgtNode = typeof selectedLink.target === 'object' ? selectedLink.target : data?.nodes.find(n => n.id === selectedLink.target);
-                      if (tgtNode) handleNodeSelect(tgtNode);
-                    }}
-                  >
-                    <div className="connection-node-id" style={{ marginBottom: 4 }}>
-                      Target: Passage {(typeof selectedLink.target === 'object' ? selectedLink.target.id : selectedLink.target).replace('B', '').replace('_P', '.')}
-                    </div>
-                    <div className="serif-text" style={{ 
-                      fontSize: '0.8rem', 
-                      lineHeight: 1.4, 
-                      paddingRight: 4, 
-                      color: 'var(--text-muted)',
-                      fontStyle: 'italic'
-                    }}>
-                      "{data?.nodes.find(n => n.id === (typeof selectedLink.target === 'object' ? selectedLink.target.id : selectedLink.target))?.text}"
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : activeTakeaway ? (
-              <div className="detail-card">
-                <div className="detail-header">
-                  <div className="passage-meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Sparkles size={16} /> Storyline Summary
-                  </div>
-                  <button 
-                    className="close-detail-btn"
-                    onClick={() => {
-                      setActiveTakeaway(null);
-                      setTourModeActive(false);
-                    }}
-                  >
-                    &times;
-                  </button>
-                </div>
-                
-                <div className="detail-body">
-                  <h3 className="serif-title" style={{ fontSize: '1.2rem', marginBottom: 4 }}>
-                    {activeTakeaway.title}
-                  </h3>
-                  <div className="passage-content serif-text" style={{ maxHeight: 'none', flex: 1 }}>
-                    {activeTakeaway.story}
-                  </div>
-
-                  <button 
-                    className="graph-btn" 
-                    style={{ 
-                      alignSelf: 'center', 
-                      marginTop: 10, 
-                      padding: '8px 24px', 
-                      borderColor: 'var(--accent-gold)', 
-                      color: 'var(--accent-gold)',
-                      fontWeight: 600
-                    }}
-                    onClick={() => {
-                      setTourModeActive(true);
-                      setTourCurrentStep(0);
-                      if (tourNodes.length > 0) {
-                        handleTourStepChange(0);
-                      }
-                    }}
-                  >
-                    <Sparkles size={14} /> Start Story Tour
-                  </button>
-                  
-                  <div style={{ marginTop: 10 }}>
-                    <span className="connections-title">Key Passages in this Thread</span>
-                    <div className="books-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginTop: 8 }}>
-                      {activeTakeaway.relatedNodeIds.map(nodeId => {
-                        const node = data?.nodes.find(n => n.id === nodeId);
-                        return (
-                          <div 
-                            key={nodeId}
-                            className="book-label"
-                            style={{ 
-                              borderColor: node ? BOOK_COLORS[node.book] : 'var(--border-glass)',
-                              background: node ? `${BOOK_COLORS[node.book]}20` : 'rgba(0,0,0,0.2)',
-                              color: '#ffffff',
-                              fontSize: '0.65rem'
-                            }}
-                            onClick={() => {
-                              if (node) handleNodeSelect(node);
-                            }}
-                          >
-                            {nodeId.replace('B', '').replace('_P', '.')}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="welcome-panel">
-                <BookOpen size={48} style={{ color: 'var(--accent-gold)', opacity: 0.5, marginBottom: 8 }} />
-                <h3>Explore the Stoic Mind</h3>
-                <p>
-                  Select any passage node in the graph to read Marcus Aurelius's reflections and view its semantic connections.
-                </p>
-                <p>
-                  Alternatively, click a <strong>Stoic Storyline</strong> on the left panel to follow conceptual paths like "The Inner Citadel" or "The Flow of Time" mapped across his 12 books.
-                </p>
-                <p style={{ fontSize: '0.7rem', opacity: 0.5, marginTop: 12 }}>
-                  Drag nodes to adjust physics, scroll to zoom, and double-click to drag a sub-network.
-                </p>
-              </div>
-            )}
-          </div>
-        </aside>
+        <SidebarRight 
+          collapsed={rightPanelCollapsed}
+          selectedNode={selectedNode}
+          setSelectedNode={setSelectedNode}
+          selectedLink={selectedLink}
+          setSelectedLink={setSelectedLink}
+          activeTakeaway={activeTakeaway}
+          setActiveTakeaway={setActiveTakeaway}
+          tourModeActive={tourModeActive}
+          setTourModeActive={setTourModeActive}
+          tourCurrentStep={tourCurrentStep}
+          tourNodes={tourNodes}
+          onTourStepChange={handleTourStepChange}
+          nodeConnections={nodeConnections}
+          data={data}
+          onNodeSelect={handleNodeSelect}
+        />
       </div>
 
       {/* Info Guide Modal */}
@@ -1941,53 +614,6 @@ function App() {
       )}
     </div>
   );
-}
-
-// Error Boundary to catch silent WebGL/ThreeJS rendering crashes and print/show detailed errors
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("ErrorBoundary caught an error in ForceGraph3D:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          padding: '24px 32px',
-          background: 'rgba(239, 68, 68, 0.12)',
-          border: '1px solid rgba(239, 68, 68, 0.4)',
-          borderRadius: '12px',
-          color: '#fca5a5',
-          fontFamily: 'monospace',
-          fontSize: '0.9rem',
-          maxWidth: '80%',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 10
-        }}>
-          <h3 style={{ margin: '0 0 10px 0', color: '#f87171', fontWeight: 'bold' }}>3D Graphics Rendering Failed</h3>
-          <p style={{ margin: '0 0 16px 0', lineHeight: 1.4 }}>{this.state.error?.toString()}</p>
-          <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.8rem' }}>
-            This usually indicates a WebGL context issue or a Three.js compatibility conflict in the browser. 2D Mode is unaffected.
-          </p>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
 }
 
 export default App;

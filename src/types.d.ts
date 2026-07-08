@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 declare module 'react-force-graph-2d' {
   import { Component, ComponentType } from 'react';
 
